@@ -1,75 +1,39 @@
-from collections import defaultdict
-from keras.datasets import mnist
-import numpy as np
+from tokenizers import ByteLevelBPETokenizer
+from collections import Counter
 
-def get_binary_representation(x):
-    binary_x = []
-    for image in x:
-        binary_image = np.unpackbits(image).reshape(-1, 8)  # Convert pixel values to binary representation
-        binary_image = binary_image.astype(str)  # Convert the binary values to strings
-        binary_x.append(binary_image)
-    return binary_x
+# Example image from MNIST
+data = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 18, 18, 18, 126, 136, 175, 26, 166, 255, 247, 127, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 30, 36, 94, 154, 170, 253, 253, 253, 253, 253, 225, 172, 253, 242, 195, 64, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 49, 238, 253, 253, 253, 253, 253, 253, 253, 253, 251, 93, 82, 82, 56, 39, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 18, 219, 253, 253, 253, 253, 253, 198, 182, 247, 241, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 80, 156, 107, 253, 253, 205, 11, 0, 43, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 1, 154, 253, 90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 139, 253, 190, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+]
 
-def get_vocabulary(texts):
-    vocabulary = defaultdict(int)
-    for text in texts:
-        for token in text:
-            token_tuple = tuple(token)
-            vocabulary[token_tuple] += 1
-    return vocabulary
+binary_data = [[format(value, '08b') for value in row] for row in data]
+flatten_data = [item for sublist in binary_data for item in sublist]
 
-def merge_tokens(vocabulary, merge_pair):
-    new_vocabulary = defaultdict(int)
-    for token, freq in vocabulary.items():
-        token_str = ' '.join(token)
-        new_token_str = token_str.replace(merge_pair, merge_pair.replace(" ", ""))
-        new_token = tuple(new_token_str.split(' '))
-        new_vocabulary[new_token] = freq
-    return new_vocabulary
+# Train BPE on binary data
+tokenizer = ByteLevelBPETokenizer()
+tokenizer.train_from_iterator(flatten_data)
 
-def bpe(texts, num_merges):
-    vocabulary = get_vocabulary(texts)
-    updated_texts = []
-
-    for _ in range(num_merges):
-        pairs = defaultdict(int)
-        for text in texts:
-            for row in text:
-                row_str = ' '.join(row)
-                for i in range(len(row) - 1):
-                    pair = row[i] + " " + row[i+1]
-                    pairs[pair] += 1
-
-        most_common_pair = max(pairs, key=pairs.get)
-        vocabulary = merge_tokens(vocabulary, most_common_pair)
-
-        updated_texts.clear()  # Clear the list for the new iteration
-
-        for text in texts:
-            updated_text = []
-            for row in text:
-                row_str = ' '.join(row)
-                updated_row_str = row_str.replace(most_common_pair, most_common_pair.replace(" ", ""))
-                updated_row = updated_row_str.split(' ')
-                updated_text.append(np.array(updated_row))
-            updated_texts.append(updated_text)
-
-        texts = updated_texts.copy()  # Update texts for the next iteration
-
-    return vocabulary, updated_texts
-
-
-# Load the MNIST dataset
-(x_train, y_train), _ = mnist.load_data()
-
-# Convert pixel values to binary representation
-binary_x_train = get_binary_representation(x_train[0])
-
-# Run BPE
-num_merges = 3
-vocabulary = bpe(binary_x_train, num_merges)
-sorted_vocabulary = sorted(vocabulary.items(), key=lambda x: x[1], reverse=True)
-
-print("Vocabulary after BPE:")
-for token, freq in sorted_vocabulary:
-    print(f"{token}: {freq}")
+# Get vocabulary
+token_counts = Counter(tokenizer.get_vocab())
+for token, count in token_counts.most_common():
+    print(f"Token: {token}, Count: {count}")
