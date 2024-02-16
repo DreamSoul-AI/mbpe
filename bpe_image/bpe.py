@@ -1,76 +1,90 @@
+from tensorflow.keras.datasets import mnist
 import numpy as np
-from torchvision import datasets, transforms
-from transformers import BertTokenizer
-from tokenizers import Tokenizer, models, trainers, pre_tokenizers, decoders
-from collections import Counter, defaultdict
+from collections import defaultdict, Counter
 
-"""
-Final vocab should be something like
-(0, 255, 3, ... ): # number of times
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-Run Bpe on a list [[0, 255, 3, 44], [0, 23, 24], [3, 23, 21, etc]] 
-Reshape numpy first
-then make it into a list
-make it into a list of strings
-then BPE it
-"""
+def image_to_list_of_lists(image):
+    return [[str(pixel) for pixel in row] for row in image]
 
-def bpe(strings, num_merges):
-    # prepare the initial data as a list of lists where each inner list is a sequence of elements (words)
-    data = [s.split() for s in strings]
+def flatten_data(images):
+    flattened = []
+    for image in images:
+        for row in image_to_list_of_lists(image):
+            flattened.append(row)
+    return flattened
 
-    # initialize the sequence counts
-    sequence_counts = Counter()
-    for sequence in data:
-        for i in range(len(sequence)):
-            for j in range(i + 1, len(sequence) + 1):
-                sequence_counts[tuple(sequence[i:j])] += 1
+def apply_merges_to_row(row, merges):
+    new_row = []
+    skip_next = False
+    for i in range(len(row)):
+        if skip_next:
+            skip_next = False
+            continue
+        if i < len(row) - 1 and (row[i], row[i+1]) in merges:
+            new_row.append(merges[(row[i], row[i+1])])
+            skip_next = True
+        else:
+            new_row.append(row[i])
+    return new_row
+
+def perform_bpe_on_dataset(flattened_data, num_merges):
+    merges = {}
+    merge_token_counter = 0  # Counter to create unique merge identifiers
+    merge_history = {}  # Dictionary to track the history of each merge
 
     for _ in range(num_merges):
-        # find the most common sequence
-        most_common_sequence = max(sequence_counts, key=sequence_counts.get, default=None)
-        if not most_common_sequence or len(most_common_sequence) <= 1:
+        pair_freqs = Counter()
+        for row in flattened_data:
+            for i in range(len(row) - 1):
+                pair = (row[i], row[i+1])
+                pair_freqs[pair] += 1
+
+        if not pair_freqs:
             break
 
-        # create merged token for most common sequence
-        merged_token = ' '.join(most_common_sequence)
-        new_sequence_counts = Counter()
+        most_common_pair = pair_freqs.most_common(1)[0][0]
+        merge_token = f"merge_{merge_token_counter}"
+        merge_token_counter += 1
 
-        # update data and counter with merged token
-        for sequence in data:
-            new_sequence = []
-            skip = 0
-            for i in range(len(sequence)):
-                if skip:
-                    skip -= 1
+        # Prepare components for merge_history
+        components = [most_common_pair[0], most_common_pair[1]]
+        # Check if components are themselves merges and adjust representation
+        components = [merge_history.get(component, component) for component in components]
+        # Update merge_history to include the new merge
+        merge_history[merge_token] = tuple(components)
+
+        # Apply the merge across the dataset
+        for i in range(len(flattened_data)):
+            new_row = []
+            skip_next = False
+            for j in range(len(flattened_data[i])):
+                if skip_next:
+                    skip_next = False
                     continue
-                if tuple(sequence[i:i+len(most_common_sequence)]) == most_common_sequence:
-                    new_sequence.append(merged_token)
-                    skip = len(most_common_sequence) - 1
+                if j < len(flattened_data[i]) - 1 and (flattened_data[i][j], flattened_data[i][j+1]) == most_common_pair:
+                    new_row.append(merge_token)
+                    skip_next = True
                 else:
-                    new_sequence.append(sequence[i])
-            for i in range(len(new_sequence)):
-                for j in range(i + 1, len(new_sequence) + 1):
-                    new_sequence_counts[tuple(new_sequence[i:j])] += 1
-            data = [new_sequence]
+                    new_row.append(flattened_data[i][j])
+            flattened_data[i] = new_row
 
-        sequence_counts = new_sequence_counts
+    return flattened_data, merge_history
 
-    return sequence_counts
+N = 1
+flattened_data = flatten_data(x_train[:N])
+num_merges = 50
+processed_data, merge_history = perform_bpe_on_dataset(flattened_data, num_merges)
 
+# Build and print the vocabulary with counts
+token_counts = Counter()
+for row in processed_data:
+    token_counts.update(row)
 
+for token, count in token_counts.items():
+    print(f"{token}: {count}")
 
-# load mnist
-mnist_train = datasets.MNIST(root="./data", train=True, download=True)
-subset_size = 1
-subset_images = mnist_train.data[:subset_size].numpy()
-
-# reshape subset to (100, 28*28) and convert to binary strings
-reshaped_subset = subset_images.reshape(subset_size, -1) # 2d array each row = image
-string_lists = [[str(element) for element in row] for row in reshaped_subset]
-
-num_merges = 10
-one_image = " ".join(string_lists[0])
-example_test = ["0 0 0 1 23 233 232"]
-vocab = bpe(example_test, num_merges)
-print(vocab)
+# Print merge history
+print("\nMerge history:")
+for merge_token, components in merge_history.items():
+    print(f"{merge_token} represents: {components}")
