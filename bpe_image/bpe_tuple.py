@@ -4,9 +4,10 @@ from collections import defaultdict, Counter
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
-# convert image to list of list of strings
+
 def image_to_list_of_lists(image):
     return [[str(pixel) for pixel in row] for row in image]
+
 
 def flatten_data(images):
     flattened = []
@@ -15,6 +16,7 @@ def flatten_data(images):
             flattened.append(row)
     return flattened
 
+
 def apply_merges_to_row(row, merges):
     new_row = []
     skip_next = False
@@ -22,12 +24,13 @@ def apply_merges_to_row(row, merges):
         if skip_next:
             skip_next = False
             continue
-        if i < len(row) - 1 and (row[i], row[i+1]) in merges:
-            new_row.append(merges[(row[i], row[i+1])])
+        if i < len(row) - 1 and (row[i], row[i + 1]) in merges:
+            new_row.append(merges[(row[i], row[i + 1])])
             skip_next = True
         else:
             new_row.append(row[i])
     return new_row
+
 
 def perform_bpe_on_dataset(flattened_data, num_merges):
     merges = {}
@@ -35,7 +38,7 @@ def perform_bpe_on_dataset(flattened_data, num_merges):
         pair_freqs = Counter()
         for row in flattened_data:
             for i in range(len(row) - 1):
-                pair = (row[i], row[i+1])
+                pair = (row[i], row[i + 1])
                 pair_freqs[pair] += 1
 
         if not pair_freqs:
@@ -52,7 +55,7 @@ def perform_bpe_on_dataset(flattened_data, num_merges):
     return flattened_data, merges
 
 
-N = 1  
+N = 1
 flattened_data = flatten_data(x_train[:N])
 num_merges = 50
 processed_data, merges_performed = perform_bpe_on_dataset(flattened_data, num_merges)
