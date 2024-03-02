@@ -9,6 +9,66 @@ def image_to_list_of_lists(image):
     return [[str(pixel) for pixel in row] for row in image]
 
 
+"""
+If i have image with pixels:
+
+0, 0, 2, 2
+1, 1, 0, 0,
+2, 2, 0, 0,
+1, 1, 0, 0,
+
+instead of a rectar scan,
+
+I I want to group just 0, i should  ((0))
+However, if i want to group (0, 0), i should have ((0), (0))
+
+For reshaping with pixel shufflign:
+
+one grouping couild be
+
+0 0 
+2 0
+
+from
+
+X, 0, X, 2
+1, 1, 0, 0,
+X, 2, X, 0,
+1, 1, 0, 0,
+
+
+and 
+
+0 2 
+2 0
+
+
+X, Y, X, Y
+1, 1, 0, 0,
+X, Y, X, Y,
+1, 1, 0, 0,
+
+This means I could create 4 groupings of 2x2 from the 4x4 image
+
+e.g. make the remaining numbers follow the square pattern grouping
+
+Tuples:
+the tuple of the first group with be ((0, 2, 2, 0)), do this via reshaping numpy
+
+BPE Is multidimensional, so its still "adjacent"
+the first group and the second group are still adjacent.
+
+(("0","0")) should never exist, but (("0"),("0")) should exist, for example
+
+
+First: make all single numbers into tuples. Reshape it to a dividable tuple.
+The dictionary should also be tuples of tuples. (Should be consistent)
+
+Second: BPE should have low time complexity. Perhaps use the mini bpe
+
+"""
+
+
 def flatten_data(images):
     flattened = []
     for image in images:

@@ -2,6 +2,9 @@ from tensorflow.keras.datasets import mnist
 import numpy as np
 from collections import defaultdict, Counter
 
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+
 def image_to_list_of_lists(image):
     """
     Converts an image into a list of lists representation.
@@ -13,6 +16,7 @@ def image_to_list_of_lists(image):
         list: The list of lists representation of the image.
     """
     return [[str(pixel) for pixel in row] for row in image]
+
 
 def flatten_data(images):
     """
@@ -118,7 +122,8 @@ def perform_bpe_on_dataset(flattened_data, num_merges):
 
 N = 1
 flattened_data = flatten_data(x_train[:N])
-num_merges = 50
+print(flattened_data)
+num_merges = 1
 processed_data, merge_history = perform_bpe_on_dataset(flattened_data, num_merges)
 
 # Build and print the vocabulary with counts
