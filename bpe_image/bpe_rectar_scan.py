@@ -25,6 +25,7 @@ class ConvertMNISTData:
 class BytePairEncoding:
     def __init__(self, data):
         self.data = data
+        self.original_data = list(data)
         self.vocab = Counter(data)
         self.merge_map = {}
         self.merge_count = 1
@@ -79,6 +80,24 @@ class BytePairEncoding:
         for merge_name, components in self.merge_definitions.items():
             print(f"{merge_name}: {components}")
 
+    def decode(self):
+        # Initialize the decoded data with the final encoded form
+        decoded_data = self.data
+        # Reverse the merge definitions to facilitate decoding
+        for i in reversed(range(1, self.merge_count)):
+            merge_name = f"merge_{i}"
+            # Replace each occurrence of the merge token with its original components
+            decoded_data = [
+                item
+                for data_item in decoded_data
+                for item in (
+                    self.merge_definitions[merge_name]
+                    if data_item == merge_name
+                    else (data_item,)
+                )
+            ]
+        return decoded_data
+
 
 def main():
     converter = ConvertMNISTData(image_index=0)
@@ -88,6 +107,12 @@ def main():
     bpe = BytePairEncoding(flattened_image)
     bpe.apply_bpe(num_merges=10)
     bpe.print_named_vocab()
+
+    decoded_image = bpe.decode()
+    assert (
+        converter.flatten_image(image_as_strings) == decoded_image
+    ), "Decoded image does not match the original image."
+    print("\nDecoding successful. The original image has been reconstructed.")
 
 
 if __name__ == "__main__":
