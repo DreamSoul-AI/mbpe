@@ -104,16 +104,9 @@ class Tokenizer:
         # write the model: to be used in load() later
         model_file = file_prefix + ".model"
         with open(model_file, 'w') as f:
-            # write the version, pattern and merges, that's all that's needed
-            f.write("image_minbpe v1\n")
-            f.write("pattern: " + f"{self.pattern}\n")
-            # write the special tokens, first the number of them, then each one
-            f.write("len(self.special_tokens): " + f"{len(self.special_tokens)}\n")
-            for special, idx in self.special_tokens.items():
-                f.write("special: " + f"{special} {idx}\n")
             # the merges dict
             for idx1, idx2 in self.merges:
-                f.write("merges: " + f"{idx1} {idx2}\n")
+                f.write(f"{idx1} {idx2}\n")
         # write the vocab: for the human to look at
         vocab_file = file_prefix + ".vocab"
         inverted_merges = {idx: pair for pair, idx in self.merges.items()}
@@ -150,16 +143,6 @@ class Tokenizer:
         special_tokens = {}
         idx = 256
         with open(model_file, 'r', encoding="utf-8") as f:
-            # read the version
-            version = f.readline().strip()
-            assert version == "image_minbpe v1"
-            # read the pattern
-            self.pattern = f.readline().strip()
-            # read the special tokens
-            num_special = int(f.readline().strip())
-            for _ in range(num_special):
-                special, special_idx = f.readline().strip().split()
-                special_tokens[special] = int(special_idx)
             # read the merges
             for line in f:
                 idx1, idx2 = map(int, line.split())
