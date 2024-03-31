@@ -13,13 +13,19 @@ class BasicTokenizer(Tokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, text, vocab_size, threshold=2, verbose=False):
+    def train(self, text, vocab_size, threshold=2, resume=True, verbose=False):
         assert vocab_size >= 256
         num_merges = vocab_size - 256
         ids = text
         # iteratively merge the most common pairs to create new tokens
-        merges = {}  # (int, int) -> int
-        vocab = {idx: idx for idx in range(256)}  # int -> bytes
+        if resume:
+            merges = self.merges  # (int, int) -> int
+            vocab = {idx: idx for idx in range(256)}
+            for (p0, p1), idx in self.merges.items():
+                vocab[idx] = (p0, p1)
+        elif not resume:
+            merges = {}  # (int, int) -> int
+            vocab = {idx: idx for idx in range(256)}
         for i in range(num_merges):
             # count up the number of times every consecutive pair appears
             stats = get_stats(ids)

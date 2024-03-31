@@ -83,17 +83,17 @@ class Tokenizer:
             for idx1, idx2 in self.merges:
                 f.write(f"{idx1} {idx2}\n")
         # write the vocab: for the human to look at
-        vocab_file = file_prefix + ".vocab"
-        inverted_merges = {idx: pair for pair, idx in self.merges.items()}
-        with open(vocab_file, "w", encoding="utf-8") as f:
-            for idx, token in self.vocab.items():
-                if idx in inverted_merges:
-                    idx0, idx1 = inverted_merges[idx]
-                    f.write(f"[{self.vocab[idx0]}][{self.vocab[idx1]}] -> [{token}] {idx}\n")
-                else:
-                    # otherwise this is leaf token, just print it
-                    # (this should just be the first 256 tokens, the bytes)
-                    f.write(f"[{token}] {idx}\n")
+        # vocab_file = file_prefix + ".vocab"
+        # inverted_merges = {idx: pair for pair, idx in self.merges.items()}
+        # with open(vocab_file, "w", encoding="utf-8") as f:
+        #     for idx, token in self.vocab.items():
+        #         if idx in inverted_merges:
+        #             idx0, idx1 = inverted_merges[idx]
+        #             f.write(f"[{self.vocab[idx0]}][{self.vocab[idx1]}] -> [{token}] {idx}\n")
+        #         else:
+        #             # otherwise this is leaf token, just print it
+        #             # (this should just be the first 256 tokens, the bytes)
+        #             f.write(f"[{token}] {idx}\n")
 
     def load(self, model_file):
         """Inverse of save() but only for the model file"""
