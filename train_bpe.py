@@ -1,10 +1,6 @@
 import json
 import numpy as np
-from tqdm import tqdm
 import torch
-import torchvision
-import torch.nn as nn
-import torchvision.transforms as transforms
 
 from collections import defaultdict
 
