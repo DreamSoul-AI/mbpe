@@ -109,6 +109,27 @@ def dfs(pair, vocab):
         pair[1] = [pair[1]]
     return pair[0] + pair[1] 
 
+def compression_rate(data, encoded_data):
+    """
+    Computes the compression rate of the encoded data.
+
+    Args:
+        data (torch.Tensor): The original data.
+        encoded_data (list): The encoded data.
+
+    Returns:
+        rate (float): The compression rate.
+    """
+
+    original_size = data.flatten().shape[0] * 8
+    encoded_size = 0
+    for i in encoded_data:
+        if isinstance(i, str):
+            encoded_size += 8
+        else:
+            encoded_size += 8 * len(i)
+    return encoded_size / original_size
+
 class Tokenizer:
 
     def __init__(self):
@@ -181,9 +202,9 @@ class Tokenizer:
                     ll = []
                     for i in tu:
                         ll.append(int(i))
-                    l.append(tuple(ll))
+                    l.append(ll)
             if len(l) > 0:
-                new_vocab[key] = tuple(l)
+                new_vocab[key] = l
 
         json_string = json.dumps(new_vocab, indent=4)
         with open(file_name, 'w') as file:
