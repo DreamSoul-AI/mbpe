@@ -76,7 +76,7 @@ def max_freq_pair(pairs):
 def merge(tuple_list, pair, idx):
     """
     Args:
-        tuple_list (list):  tuples to be merged.
+        tuple_list (list): tuples to be merged.
         pair (tuple): A pair of integers to be merged.
         idx (int): The value to replace the merged pair.
 
@@ -95,6 +95,19 @@ def merge(tuple_list, pair, idx):
             i += 1
     return new_tuple_list
 
+def dfs(pair, vocab):
+    pair = list(pair)
+    while isinstance(pair[0], str):
+        pair[0] = dfs(vocab[pair[0]], vocab)
+
+    while isinstance(pair[1], str):
+        pair[1] = dfs(vocab[pair[1]], vocab)
+
+    if isinstance(pair[0], tuple):
+        pair[0] = [pair[0]]
+    if isinstance(pair[1], tuple):
+        pair[1] = [pair[1]]
+    return pair[0] + pair[1] 
 
 class Tokenizer:
 
@@ -112,10 +125,12 @@ class Tokenizer:
         Train and encode using the provided data.
 
         Args:
-        - 
+        - tokens_tuple_list(list): A list of tuples to be encoded.
+        - vocab_size(int): The size of the vocabulary
+        - min_freq(int): The minimum frequency of a pair to be considered.
 
         Returns:
-        - 
+        - tokens_tuple_list(list): The encoded list of tuples.
         """
 
         while len(self.vocab) < vocab_size:
@@ -130,12 +145,32 @@ class Tokenizer:
             else:
                 for key, val in self.vocab.items():
                     if val == pair:
-                        idx = key
-                        
+                        idx = key      
+            tokens_tuple_list = merge(tokens_tuple_list, pair, idx)
+        
+        while len(self.vocab) == vocab_size:
+            pair, freq = max_freq_pair(freq_pair(tokens_tuple_list))
+
+            if freq < min_freq:
+                break
+
+            for key, val in self.vocab.items():
+                if val == pair:
+                    idx = key
             tokens_tuple_list = merge(tokens_tuple_list, pair, idx)
 
         # self.json_save(f'./bpe_model/vocab_{len(self.vocab)}.json')
         return tokens_tuple_list
+
+    def decode(self, ttl):
+        decoded = []
+        for i in ttl:
+            if isinstance(i, str):
+                pair = self.vocab[i]
+                decoded = decoded + dfs(pair, self.vocab)
+            else:
+                decoded.append(i)
+        return decoded
 
     def json_save(self, file_name):
         new_vocab = self.vocab.copy()
