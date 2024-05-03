@@ -1,16 +1,17 @@
-import json
 import numpy as np
-import torch
 
 from collections import defaultdict
 
 # helper functions
 def reshape_to_tuples(data, dim):
-    if isinstance(data, torch.Tensor):
-        if data.shape[0] == 1:
-            data = data.squeeze().numpy()
+    data = np.squeeze(np.array(data))
+    assert len(data.shape) <= 3, "Data must be equal to or less than 3D"
     
-    rows, cols = data.shape
+    if len(data.shape) == 2:
+        rows, cols = data.shape
+    else:
+        raise ValueError("Havn't implemented for 3D data yet")
+    
     row_group_size = rows // dim[0]
     col_group_size = cols // dim[1]
     
@@ -23,16 +24,12 @@ def reshape_to_tuples(data, dim):
         col_indices.append([j for j in range(i, cols, col_group_size)])
 
     tuples = []
-
     for row_indices_group in row_indices:
         for col_indices_group in col_indices:
             group = []
-            indices_tuple = []
-
             for r_idx in row_indices_group:
                 for c_idx in col_indices_group:
                     group.append(data[r_idx, c_idx])
-            
             tuples.append(tuple(group))
             
     return tuples
@@ -129,88 +126,3 @@ def compression_rate(data, encoded_data):
         else:
             encoded_size += 8 * len(i)
     return encoded_size / original_size
-
-class Tokenizer:
-
-    def __init__(self):
-        self.vocab = defaultdict(str)
-
-    def get_vocab(self):
-        return self.vocab
-    
-    def get_vocab_len(self):
-        return len(self.vocab)
-    
-    def train_encode(self, tokens_tuple_list, vocab_size, min_freq=2):
-        """
-        Train and encode using the provided data.
-
-        Args:
-        - tokens_tuple_list(list): A list of tuples to be encoded.
-        - vocab_size(int): The size of the vocabulary
-        - min_freq(int): The minimum frequency of a pair to be considered.
-
-        Returns:
-        - tokens_tuple_list(list): The encoded list of tuples.
-        """
-
-        while len(self.vocab) < vocab_size:
-            pair, freq = max_freq_pair(freq_pair(tokens_tuple_list))
-
-            if freq < min_freq:
-                break
-            
-            if pair not in self.vocab.values():
-                idx = str(len(self.vocab))
-                self.vocab[idx] = pair
-            else:
-                for key, val in self.vocab.items():
-                    if val == pair:
-                        idx = key      
-            tokens_tuple_list = merge(tokens_tuple_list, pair, idx)
-        
-        while len(self.vocab) == vocab_size:
-            pair, freq = max_freq_pair(freq_pair(tokens_tuple_list))
-
-            if freq < min_freq:
-                break
-
-            for key, val in self.vocab.items():
-                if val == pair:
-                    idx = key
-            tokens_tuple_list = merge(tokens_tuple_list, pair, idx)
-
-        # self.json_save(f'./bpe_model/vocab_{len(self.vocab)}.json')
-        return tokens_tuple_list
-
-    def decode(self, ttl):
-        decoded = []
-        for i in ttl:
-            if isinstance(i, str):
-                pair = self.vocab[i]
-                decoded = decoded + dfs(pair, self.vocab)
-            else:
-                decoded.append(i)
-        return decoded
-
-    def json_save(self, file_name):
-        new_vocab = self.vocab.copy()
-        for key, val in new_vocab.items():
-            l = []
-            for tu in list(val):
-                if isinstance(tu, tuple):
-                    ll = []
-                    for i in tu:
-                        ll.append(int(i))
-                    l.append(ll)
-            if len(l) > 0:
-                new_vocab[key] = l
-
-        json_string = json.dumps(new_vocab, indent=4)
-        with open(file_name, 'w') as file:
-            file.write(json_string)
-
-    def json_load(self, file_name):
-        with open(file_name, 'r') as file:
-            json_string = file.read()
-        self.vocab = json.loads(json_string)
