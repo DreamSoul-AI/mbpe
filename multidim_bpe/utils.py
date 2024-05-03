@@ -75,7 +75,7 @@ def merge(tuple_list, pair, idx):
     Args:
         tuple_list (list): tuples to be merged.
         pair (tuple): A pair of integers to be merged.
-        idx (int): The value to replace the merged pair.
+        idx (str): The value to replace the merged pair in string type.
 
     Returns:
         new_tuple_list: Merged tuple list.
@@ -112,7 +112,7 @@ def compression_rate(data, encoded_data):
 
     Args:
         data (torch.Tensor): The original data.
-        encoded_data (list): The encoded data.
+        encoded_data (numpy.ndarray): The encoded data.
 
     Returns:
         rate (float): The compression rate.

@@ -15,7 +15,7 @@ class BasicTokenizer(Tokenizer):
         - min_freq(int): The minimum frequency of a pair to be considered.
 
         Returns:
-        - tuple_list(list): The encoded list of tuples.
+        - tuple_list(numpy.ndarray): The encoded list of tuples.
         """
 
         tuple_list = reshape_to_tuples(data, dim)

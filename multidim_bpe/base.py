@@ -16,10 +16,10 @@ class Tokenizer:
     #     # Tokenizer can train a vocabulary of size vocab_size from given data
     #     raise NotImplementedError
 
-    def train_encode(self, tuple_data, vocab_size, min_freq=2):
+    def train_encode(self, data, vocab_size, dim, min_freq):
         # Tokenizer can train and encode given data
         raise NotImplementedError
 
-    def decode(self, ids):
+    def decode(self, encoded):
         # Tokenizer can decode a list of integers into a string
         raise NotImplementedError
