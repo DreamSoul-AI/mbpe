@@ -9,7 +9,7 @@ from tqdm import tqdm
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root)
 
-from multidim_bpe import basic
+from mbpe import basic
 
 
 batch_size = 1
