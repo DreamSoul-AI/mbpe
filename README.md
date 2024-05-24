@@ -3,9 +3,9 @@ This repository implements a tokenization method using Multidimensional Byte Pai
 
 ## File Structure
 The repository has the following structure:
-- [multidim_bpe/base.py](./multidim_bpe/base.py): The Tokenizer class is implemented as the fundamental class. It contains the train_encode and decode placeholders, along with save/load features. It is intended for inheritance rather than direct utilization.
-- [multidim_bpe/basic.py](./multidim_bpe/basic.py): Implements the basic tokenizer.
-- [multidim_bpe/utils.py](./multidim_bpe/utils.py): Implements several utility functions including reshaping, merge, etc.
+- [mbpe/base.py](./mbpe/base.py): The Tokenizer class is implemented as the fundamental class. It contains the train_encode and decode placeholders, along with save/load features. It is intended for inheritance rather than direct utilization.
+- [mbpe/basic.py](./mbpe/basic.py): Implements the basic tokenizer.
+- [mbpe/utils.py](./mbpe/utils.py): Implements several utility functions including reshaping, merge, etc.
 - [examples/main.py](./examples/main.py): The main Python script that performs tokenization using MDBPE on images from the MNIST dataset.
 
 ## Getting Started

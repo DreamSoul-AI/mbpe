@@ -28,10 +28,11 @@ train_dataset = torchvision.datasets.MNIST(
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=False)
 
-tokenizer = basic.BasicTokenizer()
-tokenized_tuples = []
 
 if __name__ == "__main__":
+    tokenizer = basic.BasicTokenizer()
+    tokenized_tuples = []
+
     vocab_len = tokenizer.get_vocab_len()
     progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
     for image, label in progress:
