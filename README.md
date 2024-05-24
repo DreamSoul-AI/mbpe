@@ -1,5 +1,5 @@
 # Tokenization using Multidimensional Byte Pair Encoding (MBPE)
-This repository implements a tokenization method using Multidimensional Byte Pair Encoding (MDBPE). The input is intended to be any types of data, all of which are then converted into tuples for BPE tokenization and subsequent use in downstream tasks such as autoregressive modeling.
+This repository implements a tokenization method using Multidimensional Byte Pair Encoding (MBPE). The input is intended to be any types of data, all of which are then converted into tuples for BPE tokenization and subsequent use in downstream tasks such as autoregressive modeling.
 
 ## File Structure
 The repository has the following structure:
