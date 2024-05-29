@@ -30,7 +30,7 @@ train_loader = torch.utils.data.DataLoader(
 
 
 if __name__ == "__main__":
-    tokenizer = basic.BasicTokenizer()
+    tokenizer = basic.Tokenizer()
     tokenized_tuples = []
 
     vocab_len = tokenizer.get_vocab_len()
@@ -42,4 +42,4 @@ if __name__ == "__main__":
         vocab_len = tokenizer.get_vocab_len()
         progress.set_description(f"vocab size [{vocab_len}]")
 
-    print('vocabulary:', tokenizer.get_vocab())
+    print('vocabulary:', tokenized_tuples)

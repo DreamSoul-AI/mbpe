@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 
-class Tokenizer:
+class BaseTokenizer:
     """Base class for Tokenizer"""
 
     def __init__(self):

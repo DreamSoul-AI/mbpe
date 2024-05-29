@@ -1,8 +1,8 @@
-from .base import Tokenizer
+from .base import BaseTokenizer
 from .utils import *
 
 
-class BasicTokenizer(Tokenizer):
+class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
@@ -85,6 +85,24 @@ class BasicTokenizer(Tokenizer):
                     if val == pair:
                         idx = key
                         new_tuple_list = merge(new_tuple_list, pair, idx)
+
+        i = 0
+        while i < len(new_tuple_list) - 1:
+            if isinstance(new_tuple_list[i], tuple) and isinstance(new_tuple_list[i+1], tuple):
+                pair = (new_tuple_list[i], new_tuple_list[i+1])
+                idx = str(len(self.vocab))
+                self.vocab[idx] = pair
+                new_tuple_list = merge(new_tuple_list, pair, idx)
+            i += 1
+
+        i = 0
+        while i < len(new_tuple_list) - 1:
+            if (isinstance(new_tuple_list[i], tuple) and isinstance(new_tuple_list[i+1], str)) or (isinstance(new_tuple_list[i], str) and isinstance(new_tuple_list[i+1], tuple)):
+                pair = (new_tuple_list[i], new_tuple_list[i+1])
+                idx = str(len(self.vocab))
+                self.vocab[idx] = pair
+                new_tuple_list = merge(new_tuple_list, pair, idx)
+            i += 1
 
         if self.decode(new_tuple_list) != tuple_list:
             print(new_tuple_list)
