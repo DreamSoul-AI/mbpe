@@ -116,6 +116,38 @@ def reshape_tuples(data, reshape_from, reshape_to):
     return new
 
 
+def reshape_tuple(data):
+    """
+    Reshape the given data into different dim of tuples.
+
+    Args:
+        - dim (2, 1) tuple list → dim (1, 2) tuple list
+        - dim (1, 2) tuple list → dim (1, 1) tuple list
+
+    Returns:
+        tuples: A list of tuples generated through reshaping the data.
+
+    """
+
+    reshaped_data = []
+    if any(isinstance(item, tuple) and len(item) == 4 for item in data):  # dim (2, 2) → dim (1, 2)
+        for item in data:
+            if isinstance(item, tuple):
+                reshaped_data.extend([(item[i], item[i + 1]) for i in range(0, len(item), 2)])
+            else:
+                reshaped_data.append(item)
+
+    else:  # dim (1, 2) → dim (1, 1)
+        for item in data:
+            if isinstance(item, tuple):
+                for sub_item in item:
+                    reshaped_data.append((sub_item,))
+            else:
+                reshaped_data.append(item)
+
+    return reshaped_data
+
+
 def freq_tuple(tuple_list):
     freq = defaultdict(int)
     for t in tuple_list:

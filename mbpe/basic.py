@@ -6,7 +6,7 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, dim, min_freq=2):
+    def train(self, data, dim, min_freq, vocab_size):
         """
         Train a vocabulary of size vocab_size using the provided data.
 
@@ -14,67 +14,57 @@ class Tokenizer(BaseTokenizer):
         - data(array-like): The raw data to be used for training and encoding.
         - dim(tuple): The dimension of the tuples reshaped from the raw data.
         - min_freq(int): The minimum frequency of a pair to be considered.
+        - vocab_size: The size maximum size of vocabulary
 
         Returns:
-        - None
+        - self.vocab
         """
 
-        shapes = find_tuple_shapes(dim)
-        tuple_list = data
+        self.vocab = {}
+        self.inverse_vocab = {}
+        shapes = find_tuple_shapes(dim)  # shapes = [(2, 2), (1, 2), (1, 1)]
+        tuple_list = reshape_to_tuples(data, dim)  # dim (2, 2)
 
-        for i in range(len(shapes)):
-            if i == 0:
-                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
-            else:
-                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
+        for dim_ in range(len(shapes)):
 
-            # build root vocabulary
-            inverse_vocab = defaultdict(str)
-            sorted_pairs = sorted(freq_pair(tuple_list).items(
-            ), key=lambda item: item[1], reverse=True)
-            for key, value in sorted_pairs:
-                for t in key:
-                    # build root vocabulary for (1, 1)
-                    if i == len(shapes) - 1:
-                        if isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-                    # build root vocabulary for tuples other than (1, 1)
-                    else:
-                        if value >= min_freq and isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-            tuple_list = [inverse_vocab[t]
-                          if t in inverse_vocab else t for t in tuple_list]
+            if dim_ == 0 or dim_ == 1:  # dim (2, 2) or dim (1, 2)
 
-            while True:
-                pair, freq = max_freq_pair(freq_pair(tuple_list))
+                for i in range(len(tuple_list) - 1):
+
+                    if (tuple_list[i] == tuple_list[i + 1] and tuple_list[i] not in self.vocab.values() and
+                            tuple_list[i] not in self.inverse_vocab.values()):
+                        key_counter = len(self.vocab)
+                        key = str(key_counter)
+                        self.vocab[key] = tuple_list[i]
+                        self.inverse_vocab[tuple_list[i]] = key
+
+            if dim_ == 2:  # dim (1, 1)
+                for i in range(256):
+                    key_counter = len(self.vocab)
+                    key = str(key_counter)
+                    self.vocab[key] = (i,)
+                    self.inverse_vocab[(i,)] = key
+
+            mapped_list = [self.inverse_vocab.get(item, item) for item in tuple_list]
+
+            while len(self.vocab) < vocab_size:
+                pair, freq = max_freq_pair(freq_pair(mapped_list))
 
                 if freq < min_freq:
                     break
 
                 if pair not in self.vocab.values():
-                    idx = str(len(self.vocab))
+                    key_counter = len(self.vocab)
+                    idx = str(key_counter)
                     self.vocab[idx] = pair
-                else:
-                    for key, val in self.vocab.items():
-                        if val == pair:
-                            idx = key
-                tuple_list = merge(tuple_list, pair, idx)
+                    self.inverse_vocab[pair] = idx
 
-        return
+                mapped_list = merge(mapped_list, pair, idx)
+
+            if dim != 2:
+                tuple_list = reshape_tuple(mapped_list)
+
+        return self.vocab
 
     def train_encode(self, data, dim, min_freq=2):
         """
