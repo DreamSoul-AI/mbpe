@@ -5,7 +5,7 @@ class BaseTokenizer:
     """Base class for Tokenizer"""
 
     def __init__(self):
-        self.vocab = defaultdict()
+        self.vocab = defaultdict(tuple)
 
     def get_vocab(self):
         return self.vocab

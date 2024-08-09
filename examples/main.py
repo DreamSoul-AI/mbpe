@@ -38,10 +38,13 @@ if __name__ == "__main__":
 
     for image, label in progress:
         tokenized = tokenizer.train_encode(image, dim=(2, 2), min_freq=2)
+        # tokenizer.train(image, dim=(2, 2), min_freq=2)
+        # tokenized = tokenizer.encode(image, dim=(2, 2), min_freq=2)
         tokenized_tuples.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
         progress.set_description(f"vocab size [{vocab_len}]")
-        
-    print('vocabulary:', tokenized_tuples)
+
+    print('vocabulary:', tokenizer.get_vocab())
+    print('tokenized_tuples:', tokenized_tuples)
     
