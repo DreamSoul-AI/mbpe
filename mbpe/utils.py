@@ -5,6 +5,28 @@ from collections import defaultdict
 # helper functions
 
 
+def find_tuple_shapes(dim):
+    num1, num2 = dim[0], dim[1]
+
+    divisor1 = []
+    for i in range(num1-1, 0, -1):
+        if num1 % i == 0:
+            divisor1.append(i)
+
+    divisor2 = []
+    for i in range(num2-1, 0, -1):
+        if num2 % i == 0:
+            divisor2.append(i)
+
+    tuple_shapes = [dim]
+    for div in divisor1:
+        tuple_shapes.append((div, num2))
+    for div in divisor2:
+        tuple_shapes.append((1, div))
+
+    return tuple_shapes
+
+
 def reshape_to_tuples(data, dim):
     """
     Reshape the given data into tuples based on the specified dimensions.
@@ -51,6 +73,56 @@ def reshape_to_tuples(data, dim):
     return tuples
 
 
+def reshape_tuples(data, reshape_from, reshape_to):
+    """
+    Reshape the given data into tuples based on the specified dimensions.
+
+    Args:
+        data (array-like): The input data to be reshaped into tuples.
+        dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
+
+    Returns:
+        tuples: A list of tuples generated through reshaping the data.
+
+    Raises:
+        ValueError: If the input data has more than 3 dimensions.
+    """
+
+    new = []
+    for i in data:
+        if isinstance(i, tuple):
+            row_group_size = reshape_from[0] // reshape_to[0]
+            col_group_size = reshape_from[1] // reshape_to[1]
+
+            row_indices = []
+            col_indices = []
+            for j in range(0, row_group_size):
+                row_indices.append(
+                    [k for k in range(j, reshape_from[0], row_group_size)])
+
+            for j in range(0, col_group_size):
+                col_indices.append(
+                    [k for k in range(j, reshape_from[1], col_group_size)])
+
+            for row_indices_group in row_indices:
+                for col_indices_group in col_indices:
+                    group = []
+                    for r_idx in row_indices_group:
+                        for c_idx in col_indices_group:
+                            group.append(i[r_idx*reshape_from[1]+c_idx])
+                    new.append(tuple(group))
+        else:
+            new.append(i)
+    return new
+
+
+def freq_tuple(tuple_list):
+    freq = defaultdict(int)
+    for t in tuple_list:
+        freq[t] += 1
+    return freq
+
+
 def freq_pair(tuple_list):
     """
     Computes the frequency of all tuple pairs.
@@ -89,7 +161,7 @@ def max_freq_pair(pairs):
     return best_pair, max_freq
 
 
-def merge(tuple_list, pair, idx):
+def merge(tuple_list, vocab, idx):
     """
     Args:
         tuple_list (list): tuples to be merged.
@@ -103,7 +175,7 @@ def merge(tuple_list, pair, idx):
     new_tuple_list = []
     i = 0
     while i < len(tuple_list):
-        if i < len(tuple_list) - 1 and (tuple_list[i], tuple_list[i+1]) == pair:
+        if i < len(tuple_list) - 1 and (tuple_list[i], tuple_list[i+1]) == vocab:
             new_tuple_list.append(idx)
             i += 2
         else:

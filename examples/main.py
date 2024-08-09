@@ -35,11 +35,13 @@ if __name__ == "__main__":
 
     vocab_len = tokenizer.get_vocab_len()
     progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
+
     for image, label in progress:
-        tokenized = tokenizer.train_encode(image, 12000, min_freq=4)
+        tokenized = tokenizer.train_encode(image, dim=(2, 2), min_freq=2)
         tokenized_tuples.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
         progress.set_description(f"vocab size [{vocab_len}]")
-
+        
     print('vocabulary:', tokenized_tuples)
+    

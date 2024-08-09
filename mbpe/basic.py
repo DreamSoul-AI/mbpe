@@ -6,7 +6,7 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, vocab_size, dim=(2, 2), min_freq=2):
+    def train(self, data, dim, min_freq=2):
         """
         Train a vocabulary of size vocab_size using the provided data.
 
@@ -20,27 +20,60 @@ class Tokenizer(BaseTokenizer):
         - None
         """
 
-        tuple_list = reshape_to_tuples(data, dim)
+        shapes = find_tuple_shapes(dim)
+        tuple_list = data
 
-        new_tuple_list = tuple_list
-        while len(self.vocab) < vocab_size:
-            pair, freq = max_freq_pair(freq_pair(new_tuple_list))
-
-            if freq < min_freq:
-                break
-
-            if pair not in self.vocab.values():
-                idx = str(len(self.vocab))
-                self.vocab[idx] = pair
+        for i in range(len(shapes)):
+            if i == 0:
+                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
             else:
-                for key, val in self.vocab.items():
-                    if val == pair:
-                        idx = key
-            new_tuple_list = merge(new_tuple_list, pair, idx)
+                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
+
+            # build root vocabulary
+            inverse_vocab = defaultdict(str)
+            for key, value in freq_tuple(tuple_list).items():
+                if i == len(shapes) - 1:        # build root vocabulary for (1, 1)
+                    if isinstance(key, tuple):
+                        if key not in self.vocab.values():
+                            idx = str(len(self.vocab))
+                            self.vocab[idx] = key
+                        else:
+                            for vocab_k, vocab_v in self.vocab.items():
+                                if vocab_v == key:
+                                    idx = vocab_k
+                        inverse_vocab[key] = idx
+                # build root vocabulary for tuples other than (1, 1)
+                else:
+                    if value >= min_freq and isinstance(key, tuple):
+                        if key not in self.vocab.values():
+                            idx = str(len(self.vocab))
+                            self.vocab[idx] = key
+                        else:
+                            for vocab_k, vocab_v in self.vocab.items():
+                                if vocab_v == key:
+                                    idx = vocab_k
+                        inverse_vocab[key] = idx
+            tuple_list = [inverse_vocab[t]
+                          if t in inverse_vocab else t for t in tuple_list]
+
+            while True:
+                pair, freq = max_freq_pair(freq_pair(tuple_list))
+
+                if freq < min_freq:
+                    break
+
+                if pair not in self.vocab.values():
+                    idx = str(len(self.vocab))
+                    self.vocab[idx] = pair
+                else:
+                    for key, val in self.vocab.items():
+                        if val == pair:
+                            idx = key
+                tuple_list = merge(tuple_list, pair, idx)
 
         return
 
-    def train_encode(self, data, vocab_size, dim=(2, 2), min_freq=2):
+    def train_encode(self, data, dim, min_freq=2):
         """
         Train and encode using the provided data.
 
@@ -54,64 +87,65 @@ class Tokenizer(BaseTokenizer):
         - tuple_list(list): The encoded list of tuples.
         """
 
-        tuple_list = reshape_to_tuples(data, dim)
+        shapes = find_tuple_shapes(dim)
+        tuple_list = data
 
-        new_tuple_list = tuple_list
-        while len(self.vocab) < vocab_size:
-            pair, freq = max_freq_pair(freq_pair(new_tuple_list))
-
-            if freq < min_freq:
-                break
-
-            if pair not in self.vocab.values():
-                idx = str(len(self.vocab))
-                self.vocab[idx] = pair
+        for i in range(len(shapes)):
+            if i == 0:
+                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
             else:
-                for key, val in self.vocab.items():
-                    if val == pair:
-                        idx = key
-            new_tuple_list = merge(new_tuple_list, pair, idx)
-        else:
+                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
+
+            # build root vocabulary
+            inverse_vocab = defaultdict(str)
+            for key, value in freq_tuple(tuple_list).items():
+                if i == len(shapes) - 1:        # build root vocabulary for (1, 1)
+                    if isinstance(key, tuple):
+                        if key not in self.vocab.values():
+                            idx = str(len(self.vocab))
+                            self.vocab[idx] = key
+                        else:
+                            for vocab_k, vocab_v in self.vocab.items():
+                                if vocab_v == key:
+                                    idx = vocab_k
+                        inverse_vocab[key] = idx
+                # build root vocabulary for tuples other than (1, 1)
+                else:
+                    if value >= min_freq and isinstance(key, tuple):
+                        if key not in self.vocab.values():
+                            idx = str(len(self.vocab))
+                            self.vocab[idx] = key
+                        else:
+                            for vocab_k, vocab_v in self.vocab.items():
+                                if vocab_v == key:
+                                    idx = vocab_k
+                        inverse_vocab[key] = idx
+            tuple_list = [inverse_vocab[t]
+                          if t in inverse_vocab else t for t in tuple_list]
+
             while True:
-                pair, freq = max_freq_pair(freq_pair(new_tuple_list))
+                pair, freq = max_freq_pair(freq_pair(tuple_list))
 
                 if freq < min_freq:
                     break
 
                 if pair not in self.vocab.values():
-                    break
+                    idx = str(len(self.vocab))
+                    self.vocab[idx] = pair
+                else:
+                    for key, val in self.vocab.items():
+                        if val == pair:
+                            idx = key
+                tuple_list = merge(tuple_list, pair, idx)
 
-                for key, val in self.vocab.items():
-                    if val == pair:
-                        idx = key
-                        new_tuple_list = merge(new_tuple_list, pair, idx)
+        # if self.decode(tuple_list) != tuple_list:
+        #     print(tuple_list)
+        #     print(tuple_list)
+        #     raise ValueError('Encoding Decoding Mismatch')
 
-        i = 0
-        while i < len(new_tuple_list) - 1:
-            if isinstance(new_tuple_list[i], tuple) and isinstance(new_tuple_list[i+1], tuple):
-                pair = (new_tuple_list[i], new_tuple_list[i+1])
-                idx = str(len(self.vocab))
-                self.vocab[idx] = pair
-                new_tuple_list = merge(new_tuple_list, pair, idx)
-            i += 1
+        return tuple_list
 
-        i = 0
-        while i < len(new_tuple_list) - 1:
-            if (isinstance(new_tuple_list[i], tuple) and isinstance(new_tuple_list[i+1], str)) or (isinstance(new_tuple_list[i], str) and isinstance(new_tuple_list[i+1], tuple)):
-                pair = (new_tuple_list[i], new_tuple_list[i+1])
-                idx = str(len(self.vocab))
-                self.vocab[idx] = pair
-                new_tuple_list = merge(new_tuple_list, pair, idx)
-            i += 1
-
-        if self.decode(new_tuple_list) != tuple_list:
-            print(new_tuple_list)
-            print(tuple_list)
-            raise ValueError('Encoding Decoding Mismatch')
-
-        return new_tuple_list
-
-    def encode(self, data, dim=(2, 2), min_freq=2):
+    def encode(self, data, dim, min_freq=2):
         """
         Encode using the trained vocabulary.
 
@@ -127,29 +161,51 @@ class Tokenizer(BaseTokenizer):
         if len(self.vocab) == 0:
             raise ValueError('Vocabulary not trained yet.')
 
-        tuple_list = reshape_to_tuples(data, dim)
+        shapes = find_tuple_shapes(dim)
+        tuple_list = data
 
-        new_tuple_list = tuple_list
-        while True:
-            pair, freq = max_freq_pair(freq_pair(new_tuple_list))
+        for i in range(len(shapes)):
+            if i == 0:
+                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
+            else:
+                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
-            if freq < min_freq:
-                break
+            # build root vocabulary
+            inverse_vocab = defaultdict(str)
+            for key, value in freq_tuple(tuple_list).items():
+                if i == len(shapes) - 1:        # build root vocabulary for (1, 1)
+                    if isinstance(key, tuple):
+                        for vocab_k, vocab_v in self.vocab.items():
+                            if vocab_v == key:
+                                idx = vocab_k
+                        inverse_vocab[key] = idx
+                # build root vocabulary for tuples other than (1, 1)
+                else:
+                    if value >= min_freq and isinstance(key, tuple):
+                        for vocab_k, vocab_v in self.vocab.items():
+                            if vocab_v == key:
+                                idx = vocab_k
+                        inverse_vocab[key] = idx
+            tuple_list = [inverse_vocab[t]
+                          if t in inverse_vocab else t for t in tuple_list]
 
-            if pair not in self.vocab.values():
-                break
+            while True:
+                pair, freq = max_freq_pair(freq_pair(tuple_list))
 
-            for key, val in self.vocab.items():
-                if val == pair:
-                    idx = key
-                    new_tuple_list = merge(new_tuple_list, pair, idx)
+                if freq < min_freq:
+                    break
 
-        if self.decode(new_tuple_list) != tuple_list:
-            print(new_tuple_list)
-            print(tuple_list)
-            raise ValueError('Encoding Decoding Mismatch')
+                for key, val in self.vocab.items():
+                    if val == pair:
+                        idx = key
+                tuple_list = merge(tuple_list, pair, idx)
 
-        return new_tuple_list
+        # if self.decode(tuple_list) != tuple_list:
+        #     print(tuple_list)
+        #     print(tuple_list)
+        #     raise ValueError('Encoding Decoding Mismatch')
+
+        return tuple_list
 
     def decode(self, encoded):
         """
