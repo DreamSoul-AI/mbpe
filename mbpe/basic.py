@@ -61,7 +61,7 @@ class Tokenizer(BaseTokenizer):
 
                 mapped_list = merge(mapped_list, pair, idx)
 
-            if dim != 2:
+            if dim_ != 2:
                 tuple_list = reshape_tuple(mapped_list)
 
         return self.vocab
