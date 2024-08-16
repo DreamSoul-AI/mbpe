@@ -29,35 +29,24 @@ class Tokenizer(BaseTokenizer):
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            inverse_vocab = defaultdict(str)
-            sorted_pairs = sorted(freq_pair(tuple_list).items(
-            ), key=lambda item: item[1], reverse=True)
-            for key, value in sorted_pairs:
-                for t in key:
-                    # build root vocabulary for (1, 1)
-                    if i == len(shapes) - 1:
-                        if isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-                    # build root vocabulary for tuples other than (1, 1)
-                    else:
-                        if value >= min_freq and isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-            tuple_list = [inverse_vocab[t]
-                          if t in inverse_vocab else t for t in tuple_list]
+            tmp_vocab = defaultdict(str)
+            if i == len(shapes) - 1:
+                root_min_freq = 1
+            else:
+                root_min_freq = min_freq
+            target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            for t in target_tuple_list:
+                if t not in self.vocab.values():
+                    idx = str(len(self.vocab))
+                    self.vocab[idx] = t
+                else:
+                    for vocab_k, vocab_v in self.vocab.items():
+                        if vocab_v == t:
+                            idx = vocab_k
+                tmp_vocab[t] = idx
+            self.inverse_vocab.update(tmp_vocab)
+            tuple_list = [tmp_vocab[t]
+                          if t in tmp_vocab else t for t in tuple_list]
 
             while True:
                 pair, freq = max_freq_pair(freq_pair(tuple_list))
@@ -68,6 +57,7 @@ class Tokenizer(BaseTokenizer):
                 if pair not in self.vocab.values():
                     idx = str(len(self.vocab))
                     self.vocab[idx] = pair
+                    self.inverse_vocab[pair] = idx
                 else:
                     for key, val in self.vocab.items():
                         if val == pair:
@@ -100,35 +90,24 @@ class Tokenizer(BaseTokenizer):
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            inverse_vocab = defaultdict(str)
-            sorted_pairs = sorted(freq_pair(tuple_list).items(
-            ), key=lambda item: item[1], reverse=True)
-            for key, value in sorted_pairs:
-                for t in key:
-                    # build root vocabulary for (1, 1)
-                    if i == len(shapes) - 1:
-                        if isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-                    # build root vocabulary for tuples other than (1, 1)
-                    else:
-                        if value >= min_freq and isinstance(t, tuple):
-                            if t not in self.vocab.values():
-                                idx = str(len(self.vocab))
-                                self.vocab[idx] = t
-                            else:
-                                for vocab_k, vocab_v in self.vocab.items():
-                                    if vocab_v == t:
-                                        idx = vocab_k
-                            inverse_vocab[t] = idx
-            tuple_list = [inverse_vocab[t]
-                          if t in inverse_vocab else t for t in tuple_list]
+            tmp_vocab = defaultdict(str)
+            if i == len(shapes) - 1:
+                root_min_freq = 1
+            else:
+                root_min_freq = min_freq
+            target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            for t in target_tuple_list:
+                if t not in self.vocab.values():
+                    idx = str(len(self.vocab))
+                    self.vocab[idx] = t
+                else:
+                    for vocab_k, vocab_v in self.vocab.items():
+                        if vocab_v == t:
+                            idx = vocab_k
+                tmp_vocab[t] = idx
+            self.inverse_vocab.update(tmp_vocab)
+            tuple_list = [tmp_vocab[t]
+                          if t in tmp_vocab else t for t in tuple_list]
 
             while True:
                 pair, freq = max_freq_pair(freq_pair(tuple_list))
@@ -139,6 +118,7 @@ class Tokenizer(BaseTokenizer):
                 if pair not in self.vocab.values():
                     idx = str(len(self.vocab))
                     self.vocab[idx] = pair
+                    self.inverse_vocab[pair] = idx
                 else:
                     for key, val in self.vocab.items():
                         if val == pair:
@@ -178,27 +158,23 @@ class Tokenizer(BaseTokenizer):
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            inverse_vocab = defaultdict(str)
-            sorted_pairs = sorted(freq_pair(tuple_list).items(
-            ), key=lambda item: item[1], reverse=True)
-            for key, value in sorted_pairs:
-                for t in key:
-                    # build root vocabulary for (1, 1)
-                    if i == len(shapes) - 1:
-                        if isinstance(t, tuple):
-                            for vocab_k, vocab_v in self.vocab.items():
-                                if vocab_v == t:
-                                    idx = vocab_k
-                            inverse_vocab[t] = idx
-                    # build root vocabulary for tuples other than (1, 1)
-                    else:
-                        if value >= min_freq and isinstance(t, tuple):
-                            for vocab_k, vocab_v in self.vocab.items():
-                                if vocab_v == t:
-                                    idx = vocab_k
-                            inverse_vocab[t] = idx
-            tuple_list = [inverse_vocab[t]
-                          if t in inverse_vocab else t for t in tuple_list]
+            tmp_vocab = defaultdict(str)
+            if i == len(shapes) - 1:
+                root_min_freq = 1
+            else:
+                root_min_freq = min_freq
+            target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            for t in target_tuple_list:
+                if t not in self.vocab.values():
+                    idx = str(len(self.vocab))
+                    self.vocab[idx] = t
+                else:
+                    for vocab_k, vocab_v in self.vocab.items():
+                        if vocab_v == t:
+                            idx = vocab_k
+                tmp_vocab[t] = idx
+            tuple_list = [tmp_vocab[t]
+                          if t in tmp_vocab else t for t in tuple_list]
 
             while True:
                 pair, freq = max_freq_pair(freq_pair(tuple_list))

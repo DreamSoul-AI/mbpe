@@ -79,7 +79,8 @@ def reshape_tuples(data, reshape_from, reshape_to):
 
     Args:
         data (array-like): The input data to be reshaped into tuples.
-        dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
+        reshape_from (tuple): A 2-tuple specifying the current dimensions of the tuples.
+        reshape_to (tuple): A 2-tuple specifying the desired dimensions of the tuples.
 
     Returns:
         tuples: A list of tuples generated through reshaping the data.
@@ -116,11 +117,25 @@ def reshape_tuples(data, reshape_from, reshape_to):
     return new
 
 
-def freq_tuple(tuple_list):
-    freq = defaultdict(int)
-    for t in tuple_list:
-        freq[t] += 1
-    return freq
+def freq_tuple(tuple_list, min_freq):
+    """
+    Select tuple elements that appear more than min_freq times
+
+    Args:
+        tuple_list (list): A list of tuples
+
+    Returns:
+        filtered_array (list): A filtered list of tuples.
+    """
+
+    new_tuple_list = [item for item in tuple_list if isinstance(item, tuple)]
+    np_tuple_list = np.array(new_tuple_list)
+    unique_elements, counts = np.unique(np_tuple_list, return_counts=True, axis=0)
+    filtered_array = unique_elements[counts >= min_freq]
+    target = []
+    for item in filtered_array:
+        target.append(tuple(item))
+    return target
 
 
 def freq_pair(tuple_list):

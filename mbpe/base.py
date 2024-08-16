@@ -6,6 +6,7 @@ class BaseTokenizer:
 
     def __init__(self):
         self.vocab = defaultdict(tuple)
+        self.inverse_vocab = defaultdict(str)
 
     def get_vocab(self):
         return self.vocab
