@@ -47,4 +47,3 @@ if __name__ == "__main__":
 
     print('vocabulary:', tokenizer.get_vocab())
     print('tokenized_tuples:', tokenized_tuples)
-    

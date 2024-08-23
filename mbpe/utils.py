@@ -129,16 +129,12 @@ def freq_tuple(tuple_list, min_freq):
     """
 
     new_tuple_list = [item for item in tuple_list if isinstance(item, tuple)]
-    np_tuple_list = np.array(new_tuple_list)
-    unique_elements, counts = np.unique(np_tuple_list, return_counts=True, axis=0)
-    filtered_array = unique_elements[counts >= min_freq]
-    target = []
-    for item in filtered_array:
-        target.append(tuple(item))
-    return target
+    np_tuple_list = np.fromiter(new_tuple_list, dtype=object)
+    unique_elements, counts = np.unique(np_tuple_list, return_counts=True)
+    return unique_elements[counts >= min_freq]
 
 
-def freq_pair(tuple_list):
+def get_freq(tuple_list):
     """
     Computes the frequency of all tuple pairs.
 
@@ -146,17 +142,17 @@ def freq_pair(tuple_list):
         tuple_list (list): A list of tuples
 
     Returns:
-        pairs (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies
+        counts (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies
     """
 
-    pairs = defaultdict(int)
+    counts = defaultdict(int)
     for i in range(len(tuple_list) - 1):
         pair = (tuple_list[i], tuple_list[i+1])
-        pairs[pair] += 1
-    return pairs
+        counts[pair] += 1
+    return counts
 
 
-def max_freq_pair(pairs):
+def get_max_pair(pairs):
     """
     Finds the pair with the highest frequency in a dictionary of pairs and their frequencies.
 
@@ -164,16 +160,31 @@ def max_freq_pair(pairs):
         pairs (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies.
 
     Returns:
-        best_pair (tuple): The pair with the highest frequency.
-        max_freq (int): The frequency of the best pair.
+        max_pair (tuple): The pair with the highest frequency.
+        freq (int): The frequency of the best pair.
     """
 
-    max_freq = None
-    for pair, freq in pairs.items():
-        if max_freq is None or max_freq < freq:
-            best_pair = pair
-            max_freq = freq
-    return best_pair, max_freq
+    max_pair = max(pairs, key=pairs.get)
+    freq = pairs[max_pair]
+    return max_pair, freq
+
+
+def update_vocab(vocab, inv_vocab, pair, idx):
+    """
+    Update the vocabulary and inverse vocabulary with a new pair.
+
+    Args:
+        vocab (dict): A dictionary mapping string codes to tuples representing pairs.
+        inv_vocab (dict): A dictionary mapping tuples to string codes.
+        pair (tuple): A pair of integers to be added to the vocabulary.
+        idx (str): The value to replace the merged pair in string type.
+
+    Returns:
+
+    """
+
+    vocab[idx] = pair
+    inv_vocab[pair] = idx
 
 
 def merge(tuple_list, vocab, idx):
@@ -199,7 +210,7 @@ def merge(tuple_list, vocab, idx):
     return new_tuple_list
 
 
-def dfs(pair, vocab):
+def dfs(tup, vocab):
     """
     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
 
@@ -215,37 +226,13 @@ def dfs(pair, vocab):
         It handles both elements of the pair, decoding them until they are no longer represented by string codes.
     """
 
-    pair = list(pair)
-    while isinstance(pair[0], str):
-        pair[0] = dfs(vocab[pair[0]], vocab)
+    while any(isinstance(item, str) for item in tup):
+        new_tup = ()
+        for i in tup:
+            if isinstance(i, str):
+                new_tup = new_tup + vocab[i]
+            else:
+                new_tup = new_tup + (i,)
+        tup = new_tup
 
-    while isinstance(pair[1], str):
-        pair[1] = dfs(vocab[pair[1]], vocab)
-
-    if isinstance(pair[0], tuple):
-        pair[0] = [pair[0]]
-    if isinstance(pair[1], tuple):
-        pair[1] = [pair[1]]
-    return pair[0] + pair[1]
-
-
-def compression_rate(data, encoded_data):
-    """
-    Computes the compression rate of the encoded data.
-
-    Args:
-        data (torch.Tensor): The original data.
-        encoded_data (numpy.ndarray): The encoded data.
-
-    Returns:
-        rate (float): The compression rate.
-    """
-
-    original_size = data.flatten().shape[0] * 8
-    encoded_size = 0
-    for i in encoded_data:
-        if isinstance(i, str):
-            encoded_size += 8
-        else:
-            encoded_size += 8 * len(i)
-    return encoded_size / original_size
+    return tup

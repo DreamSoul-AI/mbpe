@@ -29,39 +29,41 @@ class Tokenizer(BaseTokenizer):
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            tmp_vocab = defaultdict(str)
             if i == len(shapes) - 1:
                 root_min_freq = 1
             else:
                 root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            root_vocab = defaultdict(str)
             for t in target_tuple_list:
-                if t not in self.vocab.values():
-                    idx = str(len(self.vocab))
-                    self.vocab[idx] = t
+                # look up the root in the inverse_vocab
+                str_code = self.inverse_vocab.get(t)
+                if str_code:
+                    idx = str_code
                 else:
-                    for vocab_k, vocab_v in self.vocab.items():
-                        if vocab_v == t:
-                            idx = vocab_k
-                tmp_vocab[t] = idx
-            self.inverse_vocab.update(tmp_vocab)
-            tuple_list = [tmp_vocab[t]
-                          if t in tmp_vocab else t for t in tuple_list]
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, t, idx)
+                root_vocab[t] = idx
+
+            # update the list of tuples with the root vocabulary
+            tuple_list = [root_vocab[t]
+                          if t in root_vocab else t for t in tuple_list]
 
             while True:
-                pair, freq = max_freq_pair(freq_pair(tuple_list))
+                stats = get_freq(tuple_list)
+                pair, freq = get_max_pair(stats)
 
                 if freq < min_freq:
                     break
 
-                if pair not in self.vocab.values():
-                    idx = str(len(self.vocab))
-                    self.vocab[idx] = pair
-                    self.inverse_vocab[pair] = idx
+                # look up the pair in the inverse_vocab
+                str_code = self.inverse_vocab.get(pair)
+                if str_code:
+                    idx = str_code
                 else:
-                    for key, val in self.vocab.items():
-                        if val == pair:
-                            idx = key
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+
                 tuple_list = merge(tuple_list, pair, idx)
 
         return
@@ -86,48 +88,49 @@ class Tokenizer(BaseTokenizer):
         for i in range(len(shapes)):
             if i == 0:
                 tuple_list = reshape_to_tuples(tuple_list, shapes[i])
+                # plain_list = [item for tup in tuple_list for item in tup]
             else:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            tmp_vocab = defaultdict(str)
             if i == len(shapes) - 1:
                 root_min_freq = 1
             else:
                 root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            root_vocab = defaultdict(str)
             for t in target_tuple_list:
-                if t not in self.vocab.values():
-                    idx = str(len(self.vocab))
-                    self.vocab[idx] = t
+                # look up the root in the inverse_vocab
+                str_code = self.inverse_vocab.get(t)
+                if str_code:
+                    idx = str_code
                 else:
-                    for vocab_k, vocab_v in self.vocab.items():
-                        if vocab_v == t:
-                            idx = vocab_k
-                tmp_vocab[t] = idx
-            self.inverse_vocab.update(tmp_vocab)
-            tuple_list = [tmp_vocab[t]
-                          if t in tmp_vocab else t for t in tuple_list]
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, t, idx)
+                root_vocab[t] = idx
+
+            # update the list of tuples with the root vocabulary
+            tuple_list = [root_vocab[t]
+                          if t in root_vocab else t for t in tuple_list]
 
             while True:
-                pair, freq = max_freq_pair(freq_pair(tuple_list))
+                stats = get_freq(tuple_list)
+                pair, freq = get_max_pair(stats)
 
                 if freq < min_freq:
                     break
 
-                if pair not in self.vocab.values():
-                    idx = str(len(self.vocab))
-                    self.vocab[idx] = pair
-                    self.inverse_vocab[pair] = idx
+                # look up the pair in the inverse_vocab
+                str_code = self.inverse_vocab.get(pair)
+                if str_code:
+                    idx = str_code
                 else:
-                    for key, val in self.vocab.items():
-                        if val == pair:
-                            idx = key
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+
                 tuple_list = merge(tuple_list, pair, idx)
 
-        # if self.decode(tuple_list) != tuple_list:
-        #     print(tuple_list)
-        #     print(tuple_list)
+        # if self.decode(tuple_list) != plain_list:
         #     raise ValueError('Encoding Decoding Mismatch')
 
         return tuple_list
@@ -158,39 +161,34 @@ class Tokenizer(BaseTokenizer):
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
-            tmp_vocab = defaultdict(str)
             if i == len(shapes) - 1:
                 root_min_freq = 1
             else:
                 root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
+            root_vocab = defaultdict(str)
             for t in target_tuple_list:
-                if t not in self.vocab.values():
-                    idx = str(len(self.vocab))
-                    self.vocab[idx] = t
-                else:
-                    for vocab_k, vocab_v in self.vocab.items():
-                        if vocab_v == t:
-                            idx = vocab_k
-                tmp_vocab[t] = idx
-            tuple_list = [tmp_vocab[t]
-                          if t in tmp_vocab else t for t in tuple_list]
+                # look up the root in the inverse_vocab
+                str_code = self.inverse_vocab.get(t)
+                idx = str_code
+                root_vocab[t] = idx
+
+            # update the list of tuples with the root vocabulary
+            tuple_list = [root_vocab[t]
+                          if t in root_vocab else t for t in tuple_list]
 
             while True:
-                pair, freq = max_freq_pair(freq_pair(tuple_list))
+                stats = get_freq(tuple_list)
+                pair, freq = get_max_pair(stats)
 
                 if freq < min_freq:
                     break
 
-                for key, val in self.vocab.items():
-                    if val == pair:
-                        idx = key
-                tuple_list = merge(tuple_list, pair, idx)
+                # look up the pair in the inverse_vocab
+                str_code = self.inverse_vocab.get(pair)
+                idx = str_code
 
-        # if self.decode(tuple_list) != tuple_list:
-        #     print(tuple_list)
-        #     print(tuple_list)
-        #     raise ValueError('Encoding Decoding Mismatch')
+                tuple_list = merge(tuple_list, pair, idx)
 
         return tuple_list
 
@@ -207,9 +205,8 @@ class Tokenizer(BaseTokenizer):
 
         decoded = []
         for i in encoded:
-            if isinstance(i, str):
-                pair = self.vocab[i]
-                decoded = decoded + dfs(pair, self.vocab)
-            else:
-                decoded.append(i)
-        return decoded
+            pair = self.vocab[i]
+            decoded.append(dfs(pair, self.vocab))
+        plain_list = [item for tup in decoded for item in tup]
+
+        return plain_list
