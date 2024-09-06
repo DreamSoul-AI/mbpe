@@ -193,27 +193,26 @@ def max_freq_pair(pairs):
     return best_pair, max_freq
 
 
-def merge(tuple_list, vocab, idx):
-    """
-    Args:
-        tuple_list (list): tuples to be merged.
-        pair (tuple): A pair of integers to be merged.
-        idx (str): The value to replace the merged pair in string type.
+def merge(tuple_list, root_vocab, max_pair):
 
-    Returns:
-        new_tuple_list: Merged tuple list.
-    """
+    if max_pair not in root_vocab:
+        root_vocab.append(max_pair)
+    
 
     new_tuple_list = []
-    i = 0
-    while i < len(tuple_list):
-        if i < len(tuple_list) - 1 and (tuple_list[i], tuple_list[i+1]) == vocab:
-            new_tuple_list.append(idx)
-            i += 2
+    skip_next = False  
+    for i in range(len(tuple_list)):
+        if skip_next:
+            skip_next = False
+            continue
+
+        if i < len(tuple_list) - 1 and tuple_list[i] == max_pair[0] and tuple_list[i + 1] == max_pair[1]:
+            new_tuple_list.append(max_pair)
+            skip_next = True  
         else:
             new_tuple_list.append(tuple_list[i])
-            i += 1
-    return new_tuple_list
+
+    return new_tuple_list, root_vocab
 
 
 def dfs(pair, vocab):
