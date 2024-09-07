@@ -100,24 +100,6 @@ def reshape_tuples(data, reshape_from, reshape_to):
                 for col_indices_group in col_indices
             ]
             new += tuples
-
-            # row_indices = []
-            # col_indices = []
-            # for j in range(0, row_group_size):
-            #     row_indices.append(
-            #         [k for k in range(j, reshape_from[0], row_group_size)])
-
-            # for j in range(0, col_group_size):
-            #     col_indices.append(
-            #         [k for k in range(j, reshape_from[1], col_group_size)])
-
-            # for row_indices_group in row_indices:
-            #     for col_indices_group in col_indices:
-            #         group = []
-            #         for r_idx in row_indices_group:
-            #             for c_idx in col_indices_group:
-            #                 group.append(i[r_idx*reshape_from[1]+c_idx])
-            #         new.append(tuple(group))
         else:
             new.append(i)
     return new
