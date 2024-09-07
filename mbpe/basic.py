@@ -6,33 +6,30 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, dim, min_freq=2):
+    def train(self, data, dim, min_freq=2, root_min_freq=2):
         """
         Train a vocabulary of size vocab_size using the provided data.
 
         Args:
-        - data(array-like): The raw data to be used for training and encoding.
-        - dim(tuple): The dimension of the tuples reshaped from the raw data.
-        - min_freq(int): The minimum frequency of a pair to be considered.
+        - data (array-like): The raw data to be used for training and encoding.
+        - dim (tuple): The dimension of the tuples reshaped from the raw data.
+        - min_freq (int): The minimum frequency of a pair to be considered.
+        - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
 
         Returns:
         - None
         """
 
+        tuple_list = reshape_to_tuples(data, dim)
         shapes = find_tuple_shapes(dim)
-        tuple_list = data
 
         for i in range(len(shapes)):
-            if i == 0:
-                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
-            else:
+            if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
                 root_min_freq = 1
-            else:
-                root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
@@ -68,35 +65,30 @@ class Tokenizer(BaseTokenizer):
 
         return
 
-    def train_encode(self, data, dim, min_freq=2):
+    def train_encode(self, data, dim, min_freq=2, root_min_freq=2):
         """
         Train and encode using the provided data.
 
         Args:
-        - data(array-like): The raw data to be used for training and encoding.
-        - vocab_size(int): The size of the vocabulary
-        - dim(tuple): The dimension of the tuples reshaped from the raw data.
-        - min_freq(int): The minimum frequency of a pair to be considered.
+        - data (array-like): The raw data to be used for training and encoding.
+        - dim (tuple): The dimension of the tuples reshaped from the raw data.
+        - min_freq (int): The minimum frequency of a pair to be considered.
+        - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
 
         Returns:
-        - tuple_list(list): The encoded list of tuples.
+        - tuple_list (list): The encoded list of tuples.
         """
 
+        tuple_list = reshape_to_tuples(data, dim)
         shapes = find_tuple_shapes(dim)
-        tuple_list = data
 
         for i in range(len(shapes)):
-            if i == 0:
-                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
-                # plain_list = [item for tup in tuple_list for item in tup]
-            else:
+            if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
                 root_min_freq = 1
-            else:
-                root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
@@ -135,36 +127,33 @@ class Tokenizer(BaseTokenizer):
 
         return tuple_list
 
-    def encode(self, data, dim, min_freq=2):
+    def encode(self, data, dim, min_freq=2, root_min_freq=2):
         """
         Encode using the trained vocabulary.
 
         Args:
-        - data(array-like): The raw data to be used for training and encoding.
-        - dim(tuple): The dimension of the tuples reshaped from the raw data.
-        - min_freq(int): The minimum frequency of a pair to be considered.
+        - data (array-like): The raw data to be used for training and encoding.
+        - dim (tuple): The dimension of the tuples reshaped from the raw data.
+        - min_freq (int): The minimum frequency of a pair to be considered.
+        - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
 
         Returns:
-        - tuple_list(list): The encoded list of tuples.
+        - tuple_list (list): The encoded list of tuples.
         """
 
         if len(self.vocab) == 0:
             raise ValueError('Vocabulary not trained yet.')
 
+        tuple_list = reshape_to_tuples(data, dim)
         shapes = find_tuple_shapes(dim)
-        tuple_list = data
 
         for i in range(len(shapes)):
-            if i == 0:
-                tuple_list = reshape_to_tuples(tuple_list, shapes[i])
-            else:
+            if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
                 root_min_freq = 1
-            else:
-                root_min_freq = min_freq
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
@@ -197,10 +186,10 @@ class Tokenizer(BaseTokenizer):
         Decode the encoded data back into its original list of tuples.
 
         Args:
-        - encoded(list): encoded data containing tuples and string codes.
+        - encoded (list): encoded data containing tuples and string codes.
 
         Returns:
-        - decoded(list): The decoded list of tuples.
+        - plain_list (list): The decoded list of tuples.
         """
 
         decoded = []

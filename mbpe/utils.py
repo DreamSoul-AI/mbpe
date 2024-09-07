@@ -46,29 +46,21 @@ def reshape_to_tuples(data, dim):
     assert len(data.shape) <= 3, "Data must be equal to or less than 3D"
 
     if len(data.shape) == 2:
-        rows, cols = data.shape
+        num_rows, num_cols = data.shape
     else:
         raise ValueError("Havn't implemented for 3D data yet")
 
-    row_group_size = rows // dim[0]
-    col_group_size = cols // dim[1]
+    row_offsets = num_rows // dim[0]
+    col_offsets = num_cols // dim[1]
 
-    row_indices = []
-    col_indices = []
-    for i in range(0, row_group_size):
-        row_indices.append([j for j in range(i, rows, row_group_size)])
+    row_indices = np.arange(num_rows).reshape(row_offsets, dim[0], order='F')
+    col_indices = np.arange(num_cols).reshape(col_offsets, dim[1], order='F')
 
-    for i in range(0, col_group_size):
-        col_indices.append([j for j in range(i, cols, col_group_size)])
-
-    tuples = []
-    for row_indices_group in row_indices:
-        for col_indices_group in col_indices:
-            group = []
-            for r_idx in row_indices_group:
-                for c_idx in col_indices_group:
-                    group.append(data[r_idx, c_idx])
-            tuples.append(tuple(group))
+    tuples = [
+        tuple(data[np.ix_(row_indices_group, col_indices_group)].flatten())
+        for row_indices_group in row_indices
+        for col_indices_group in col_indices
+    ]
 
     return tuples
 
@@ -89,29 +81,43 @@ def reshape_tuples(data, reshape_from, reshape_to):
         ValueError: If the input data has more than 3 dimensions.
     """
 
+    row_offsets = reshape_from[0] // reshape_to[0]
+    col_offsets = reshape_from[1] // reshape_to[1]
+
     new = []
     for i in data:
         if isinstance(i, tuple):
-            row_group_size = reshape_from[0] // reshape_to[0]
-            col_group_size = reshape_from[1] // reshape_to[1]
+            np_array = np.array(i).reshape(reshape_from)
+            row_indices = np.arange(reshape_from[0]).reshape(
+                row_offsets, reshape_to[0], order='F')
+            col_indices = np.arange(reshape_from[1]).reshape(
+                col_offsets, reshape_to[1], order='F')
 
-            row_indices = []
-            col_indices = []
-            for j in range(0, row_group_size):
-                row_indices.append(
-                    [k for k in range(j, reshape_from[0], row_group_size)])
+            tuples = [
+                tuple(
+                    np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
+                for row_indices_group in row_indices
+                for col_indices_group in col_indices
+            ]
+            new += tuples
 
-            for j in range(0, col_group_size):
-                col_indices.append(
-                    [k for k in range(j, reshape_from[1], col_group_size)])
+            # row_indices = []
+            # col_indices = []
+            # for j in range(0, row_group_size):
+            #     row_indices.append(
+            #         [k for k in range(j, reshape_from[0], row_group_size)])
 
-            for row_indices_group in row_indices:
-                for col_indices_group in col_indices:
-                    group = []
-                    for r_idx in row_indices_group:
-                        for c_idx in col_indices_group:
-                            group.append(i[r_idx*reshape_from[1]+c_idx])
-                    new.append(tuple(group))
+            # for j in range(0, col_group_size):
+            #     col_indices.append(
+            #         [k for k in range(j, reshape_from[1], col_group_size)])
+
+            # for row_indices_group in row_indices:
+            #     for col_indices_group in col_indices:
+            #         group = []
+            #         for r_idx in row_indices_group:
+            #             for c_idx in col_indices_group:
+            #                 group.append(i[r_idx*reshape_from[1]+c_idx])
+            #         new.append(tuple(group))
         else:
             new.append(i)
     return new
@@ -123,6 +129,7 @@ def freq_tuple(tuple_list, min_freq):
 
     Args:
         tuple_list (list): A list of tuples
+        min_freq (int): The minimum frequency of a pair to be considered.
 
     Returns:
         filtered_array (list): A filtered list of tuples.
@@ -191,7 +198,7 @@ def merge(tuple_list, vocab, idx):
     """
     Args:
         tuple_list (list): tuples to be merged.
-        pair (tuple): A pair of integers to be merged.
+        vocab (tuple): A pair of integers to be merged.
         idx (str): The value to replace the merged pair in string type.
 
     Returns:
@@ -215,15 +222,12 @@ def dfs(tup, vocab):
     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
 
     Args:
-        pair (tuple): A tuple representing a pair of tuples or string codes to be decoded.
+        tup (tuple): A tuple representing a pair of tuples or string codes to be decoded.
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
 
     Returns:
         list: A list of decoded elements resulting from the DFS decoding process.
 
-    Notes:
-        This function decodes a pair recursively by traversing the vocabulary using depth-first search (DFS).
-        It handles both elements of the pair, decoding them until they are no longer represented by string codes.
     """
 
     while any(isinstance(item, str) for item in tup):
