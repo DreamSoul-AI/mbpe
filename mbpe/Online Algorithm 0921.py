@@ -7,10 +7,9 @@ from tqdm import tqdm
 import torch
 import torchvision
 import torchvision.transforms as transforms
-
-random_seed = 2
 import os
 import pickle
+random_seed = 2
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -35,7 +34,6 @@ for i, (image, label) in enumerate(progress):
         break
     tuple_list = reshape_to_tuples(image, dim=(2, 2))
     tuple_list_2_2.append(tuple_list)
-
 
 # ----------------------------------------------------------------------------------
 class FrequencyTableManager:
