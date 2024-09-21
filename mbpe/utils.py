@@ -27,7 +27,7 @@ def find_tuple_shapes(dim):
     return tuple_shapes
 
 
-def reshape_to_tuples(data, dim):
+def arr_to_tuples(data, dim):
     """
     Reshape the given data into tuples based on the specified dimensions.
 

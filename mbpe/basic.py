@@ -20,7 +20,7 @@ class Tokenizer(BaseTokenizer):
         - None
         """
 
-        tuple_list = reshape_to_tuples(data, dim)
+        tuple_list = data
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
@@ -144,7 +144,7 @@ class Tokenizer(BaseTokenizer):
         if len(self.vocab) == 0:
             raise ValueError('Vocabulary not trained yet.')
 
-        tuple_list = reshape_to_tuples(data, dim)
+        tuple_list = data
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
