@@ -42,9 +42,6 @@ def reshape_to_tuples(data, dim):
         ValueError: If the input data has more than 3 dimensions.
     """
 
-    data = np.squeeze(np.array(data))
-    assert len(data.shape) <= 3, "Data must be equal to or less than 3D"
-
     if len(data.shape) == 2:
         num_rows, num_cols = data.shape
     else:
@@ -70,7 +67,7 @@ def reshape_tuples(data, reshape_from, reshape_to):
     Reshape the given data into tuples based on the specified dimensions.
 
     Args:
-        data (array-like): The input data to be reshaped into tuples.
+        data (list): A list of combination of tuples and strings.
         reshape_from (tuple): A 2-tuple specifying the current dimensions of the tuples.
         reshape_to (tuple): A 2-tuple specifying the desired dimensions of the tuples.
 
@@ -84,25 +81,63 @@ def reshape_tuples(data, reshape_from, reshape_to):
     row_offsets = reshape_from[0] // reshape_to[0]
     col_offsets = reshape_from[1] // reshape_to[1]
 
-    new = []
-    for i in data:
-        if isinstance(i, tuple):
-            np_array = np.array(i).reshape(reshape_from)
-            row_indices = np.arange(reshape_from[0]).reshape(
-                row_offsets, reshape_to[0], order='F')
-            col_indices = np.arange(reshape_from[1]).reshape(
-                col_offsets, reshape_to[1], order='F')
+    if row_offsets == 1:
+        transpose_axes = (0, 2, 1)
+        offsets = col_offsets
+    elif col_offsets == 1:
+        transpose_axes = (0, 1, 2)
+        offsets = row_offsets
 
-            tuples = [
-                tuple(
-                    np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
-                for row_indices_group in row_indices
-                for col_indices_group in col_indices
-            ]
-            new += tuples
+    tuples = []
+    strings = []
+    idx = []
+    # new = []
+    for i in data:
+        #     if isinstance(i, tuple):
+        #         np_array = np.array(i).reshape(reshape_from)
+        #         row_indices = np.arange(reshape_from[0]).reshape(
+        #             row_offsets, reshape_to[0], order='F')
+        #         col_indices = np.arange(reshape_from[1]).reshape(
+        #             col_offsets, reshape_to[1], order='F')
+
+        #         tuples = [
+        #             tuple(
+        #                 np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
+        #             for row_indices_group in row_indices
+        #             for col_indices_group in col_indices
+        #         ]
+        #         new += tuples
+        #     else:
+        #         new.append(i)
+
+        # print(new)
+
+        if isinstance(i, tuple):
+            tuples.append(i)
         else:
-            new.append(i)
-    return new
+            strings.append(i)
+            idx.append(len(tuples)*offsets + len(strings)-1)
+
+    ori_shape = (len(tuples), ) + reshape_from
+    ori_arr = np.array(tuples).reshape(ori_shape)
+
+    new_shape = (offsets*len(tuples), ) + reshape_to
+    new_arr = np.transpose(ori_arr, transpose_axes).reshape(new_shape)
+
+    tuples = list(map(tuple, new_arr.reshape(-1, np.prod(reshape_to))))
+
+    merged = []
+    tuple_idx = 0
+    string_idx = 0
+    for i in range(len(tuples) + len(strings)):
+        if i in idx:
+            merged.append(strings[string_idx])
+            string_idx += 1
+        else:
+            merged.append(tuples[tuple_idx])
+            tuple_idx += 1
+
+    return merged
 
 
 def freq_tuple(tuple_list, min_freq):

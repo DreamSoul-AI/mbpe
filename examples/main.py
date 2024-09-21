@@ -10,6 +10,7 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root)
 
 from mbpe import basic
+from mbpe import utils
 
 
 batch_size = 1
@@ -36,8 +37,11 @@ if __name__ == "__main__":
     vocab_len = tokenizer.get_vocab_len()
     progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
 
+    dim = (2, 2)
     for image, label in progress:
-        tokenized = tokenizer.train_encode(image, dim=(2, 2), min_freq=2)
+        image = np.squeeze(np.array(image))
+        tuples = utils.reshape_to_tuples(image, dim)
+        tokenized = tokenizer.train_encode(tuples, dim=dim, min_freq=2)
         # tokenizer.train(image, dim=(2, 2), min_freq=2)
         # tokenized = tokenizer.encode(image, dim=(2, 2), min_freq=2)
         tokenized_tuples.append(tokenized)

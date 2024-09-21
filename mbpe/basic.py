@@ -70,7 +70,7 @@ class Tokenizer(BaseTokenizer):
         Train and encode using the provided data.
 
         Args:
-        - data (array-like): The raw data to be used for training and encoding.
+        - data (list): A list of tuples reshaped from the raw image.
         - dim (tuple): The dimension of the tuples reshaped from the raw data.
         - min_freq (int): The minimum frequency of a pair to be considered.
         - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
@@ -79,7 +79,7 @@ class Tokenizer(BaseTokenizer):
         - tuple_list (list): The encoded list of tuples.
         """
 
-        tuple_list = reshape_to_tuples(data, dim)
+        tuple_list = data
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
