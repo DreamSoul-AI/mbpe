@@ -24,18 +24,20 @@ class Tokenizer(BaseTokenizer):
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
+            # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
+                # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
                 root_min_freq = 1
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
                 # look up the root in the inverse_vocab
-                str_code = self.inverse_vocab.get(t)
-                if str_code:
+                str_code = self.inverse_vocab[t]
+                if str_code != '':
                     idx = str_code
                 else:
                     idx = str(len(self.vocab))
@@ -54,8 +56,8 @@ class Tokenizer(BaseTokenizer):
                     break
 
                 # look up the pair in the inverse_vocab
-                str_code = self.inverse_vocab.get(pair)
-                if str_code:
+                str_code = self.inverse_vocab[pair]
+                if str_code != '':
                     idx = str_code
                 else:
                     idx = str(len(self.vocab))
@@ -83,18 +85,20 @@ class Tokenizer(BaseTokenizer):
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
+            # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
+                # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
                 root_min_freq = 1
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
                 # look up the root in the inverse_vocab
-                str_code = self.inverse_vocab.get(t)
-                if str_code:
+                str_code = self.inverse_vocab[t]
+                if str_code != '':
                     idx = str_code
                 else:
                     idx = str(len(self.vocab))
@@ -113,8 +117,8 @@ class Tokenizer(BaseTokenizer):
                     break
 
                 # look up the pair in the inverse_vocab
-                str_code = self.inverse_vocab.get(pair)
-                if str_code:
+                str_code = self.inverse_vocab[pair]
+                if str_code != '':
                     idx = str_code
                 else:
                     idx = str(len(self.vocab))
@@ -148,17 +152,19 @@ class Tokenizer(BaseTokenizer):
         shapes = find_tuple_shapes(dim)
 
         for i in range(len(shapes)):
+            # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
                 tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
+                # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
                 root_min_freq = 1
             target_tuple_list = freq_tuple(tuple_list, root_min_freq)
             root_vocab = defaultdict(str)
             for t in target_tuple_list:
                 # look up the root in the inverse_vocab
-                str_code = self.inverse_vocab.get(t)
+                str_code = self.inverse_vocab[t]
                 idx = str_code
                 root_vocab[t] = idx
 
@@ -174,7 +180,7 @@ class Tokenizer(BaseTokenizer):
                     break
 
                 # look up the pair in the inverse_vocab
-                str_code = self.inverse_vocab.get(pair)
+                str_code = self.inverse_vocab[pair]
                 idx = str_code
 
                 tuple_list = merge(tuple_list, pair, idx)

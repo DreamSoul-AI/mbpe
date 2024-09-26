@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 
 from collections import defaultdict
@@ -27,12 +28,12 @@ def find_tuple_shapes(dim):
     return tuple_shapes
 
 
-def arr_to_tuples(data, dim):
+def pixel_to_tuples(image, dim):
     """
     Reshape the given data into tuples based on the specified dimensions.
 
     Args:
-        data (array-like): The input data to be reshaped into tuples.
+        data (tensor): The input image to be reshaped into tuples.
         dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
 
     Returns:
@@ -42,24 +43,35 @@ def arr_to_tuples(data, dim):
         ValueError: If the input data has more than 3 dimensions.
     """
 
-    if len(data.shape) == 2:
-        num_rows, num_cols = data.shape
-    else:
-        raise ValueError("Havn't implemented for 3D data yet")
-
-    row_offsets = num_rows // dim[0]
-    col_offsets = num_cols // dim[1]
-
-    row_indices = np.arange(num_rows).reshape(row_offsets, dim[0], order='F')
-    col_indices = np.arange(num_cols).reshape(col_offsets, dim[1], order='F')
-
-    tuples = [
-        tuple(data[np.ix_(row_indices_group, col_indices_group)].flatten())
-        for row_indices_group in row_indices
-        for col_indices_group in col_indices
-    ]
-
+    """
+    Below only works if dim has uniform dimensions and both H and W should be divisible by dim
+    i.e. dim = (2, 2) and H = W = 10 or dim = (3, 3) and H = W = 15
+    """
+    image = image.squeeze(0)
+    _, H, W = image.shape
+    pixel_unshuffle = torch.nn.PixelUnshuffle(H//dim[0])
+    output = np.array(pixel_unshuffle(image))
+    tuples = list(map(tuple, output.reshape(-1, np.prod(dim))))
     return tuples
+
+    """
+    Below works for dim with any dimensions and both H and W should be divisible by dim
+    i.e. dim = (4, 2) and H = W = 20 or dim = (3, 3) and H = W = 15
+    """
+    # image = np.array(image.squeeze())
+    # H, W = image.shape
+    # row_offsets = H // dim[0]
+    # col_offsets = W // dim[1]
+
+    # row_indices = np.arange(H).reshape(row_offsets, dim[0], order='F')
+    # col_indices = np.arange(W).reshape(col_offsets, dim[1], order='F')
+
+    # tuples = [
+    #     tuple(image[np.ix_(row_indices_group, col_indices_group)].flatten())
+    #     for row_indices_group in row_indices
+    #     for col_indices_group in col_indices
+    # ]
+    # return tuples
 
 
 def reshape_tuples(data, reshape_from, reshape_to):
@@ -81,37 +93,34 @@ def reshape_tuples(data, reshape_from, reshape_to):
     row_offsets = reshape_from[0] // reshape_to[0]
     col_offsets = reshape_from[1] // reshape_to[1]
 
-    if row_offsets == 1:
-        transpose_axes = (0, 2, 1)
-        offsets = col_offsets
-    elif col_offsets == 1:
-        transpose_axes = (0, 1, 2)
-        offsets = row_offsets
+    # new = []
+    # for i in data:
+    #     if isinstance(i, tuple):
+    #         np_array = np.array(i).reshape(reshape_from)
+    #         row_indices = np.arange(reshape_from[0]).reshape(
+    #             row_offsets, reshape_to[0], order='F')
+    #         col_indices = np.arange(reshape_from[1]).reshape(
+    #             col_offsets, reshape_to[1], order='F')
 
+    #         tuples = [
+    #             tuple(
+    #                 np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
+    #             for row_indices_group in row_indices
+    #             for col_indices_group in col_indices
+    #         ]
+    #         new += tuples
+    #     else:
+    #         new.append(i)
+
+    # print(new)
+
+    offsets = col_offsets if row_offsets == 1 else row_offsets
+
+    # separate tuples and strings
     tuples = []
     strings = []
     idx = []
-    # new = []
     for i in data:
-        #     if isinstance(i, tuple):
-        #         np_array = np.array(i).reshape(reshape_from)
-        #         row_indices = np.arange(reshape_from[0]).reshape(
-        #             row_offsets, reshape_to[0], order='F')
-        #         col_indices = np.arange(reshape_from[1]).reshape(
-        #             col_offsets, reshape_to[1], order='F')
-
-        #         tuples = [
-        #             tuple(
-        #                 np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
-        #             for row_indices_group in row_indices
-        #             for col_indices_group in col_indices
-        #         ]
-        #         new += tuples
-        #     else:
-        #         new.append(i)
-
-        # print(new)
-
         if isinstance(i, tuple):
             tuples.append(i)
         else:
@@ -122,22 +131,26 @@ def reshape_tuples(data, reshape_from, reshape_to):
     ori_arr = np.array(tuples).reshape(ori_shape)
 
     new_shape = (offsets*len(tuples), ) + reshape_to
-    new_arr = np.transpose(ori_arr, transpose_axes).reshape(new_shape)
+    # reshape based on the dimension that changes
+    if row_offsets == 1:    # i.e. (n, 2, 2) -> (2n, 2, 1)
+        new_arr = ori_arr.reshape(ori_shape[0], np.prod(
+            reshape_from)//offsets, offsets).transpose(0, 2, 1)
+    elif col_offsets == 1:    # i.e. (n, 2, 2) -> (2n, 1, 2)
+        new_arr = ori_arr.reshape(new_shape).transpose(1, 0, 2)
 
-    tuples = list(map(tuple, new_arr.reshape(-1, np.prod(reshape_to))))
+    tuples = list(map(tuple, new_arr.reshape(
+        new_shape[0], np.prod(reshape_to))))
 
-    merged = []
-    tuple_idx = 0
-    string_idx = 0
-    for i in range(len(tuples) + len(strings)):
-        if i in idx:
-            merged.append(strings[string_idx])
-            string_idx += 1
-        else:
-            merged.append(tuples[tuple_idx])
-            tuple_idx += 1
+    # merge tuples and strings back to one list
+    total_length = len(tuples) + len(strings)
+    merged = np.empty(total_length, dtype=object)
+    str_mask = np.zeros(total_length, dtype=bool)
+    str_mask[idx] = True
+    merged[str_mask] = strings
+    for i, index in enumerate(np.where(~str_mask)[0]):
+        merged[index] = tuples[i]
 
-    return merged
+    return list(merged)
 
 
 def freq_tuple(tuple_list, min_freq):

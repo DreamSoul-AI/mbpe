@@ -39,8 +39,7 @@ if __name__ == "__main__":
 
     dim = (2, 2)
     for image, label in progress:
-        image = np.squeeze(np.array(image))
-        tuples = utils.arr_to_tuples(image, dim)
+        tuples = utils.pixel_to_tuples(image, dim)
         tokenized = tokenizer.train_encode(tuples, dim=dim, min_freq=2)
         # tokenizer.train(image, dim=(2, 2), min_freq=2)
         # tokenized = tokenizer.encode(image, dim=(2, 2), min_freq=2)
