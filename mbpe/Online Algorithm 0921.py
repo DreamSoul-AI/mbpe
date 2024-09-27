@@ -37,11 +37,9 @@ for i, (image, label) in enumerate(progress):
 
 # ----------------------------------------------------------------------------------
 class FrequencyTableManager:
-    def __init__(self, freq_file='freq_tab_2_2.pkl', prob_file='prob_tab_2_2.pkl'):
+    def __init__(self, freq_file='freq_tab_2_2.pkl'):
         self.freq_file = freq_file
-        self.prob_file = prob_file
         self.freq_tab = {}
-        self.prob_tab = {}
 
         self._initialize_tables()
 
@@ -55,18 +53,9 @@ class FrequencyTableManager:
             with open(self.freq_file, 'rb') as f:
                 self.freq_tab = pickle.load(f)
 
-        # Initialize probability file
-        if not os.path.exists(self.prob_file):
-            with open(self.prob_file, 'wb') as f:
-                pickle.dump({}, f)
-        else:
-            with open(self.prob_file, 'rb') as f:
-                self.prob_tab = pickle.load(f)
-
     def update_tables(self, tuple_list):
         for tup in tuple_list:
             self._update_frequency(tup)
-            self._update_probability()
 
     def _update_frequency(self, tup):
         # Update frequency table
@@ -79,22 +68,8 @@ class FrequencyTableManager:
         with open(self.freq_file, 'wb') as f:
             pickle.dump(self.freq_tab, f)
 
-    def _update_probability(self):
-
-        total_count = sum(self.freq_tab.values())
-
-        # Update probability table
-        self.prob_tab = {tup: count / total_count for tup, count in self.freq_tab.items()}
-
-        # Save probability table
-        with open(self.prob_file, 'wb') as f:
-            pickle.dump(self.prob_tab, f)
-
     def get_freq_tab(self):
         return self.freq_tab
-
-    def get_prob_tab(self):
-        return self.prob_tab
 
 
 manager = FrequencyTableManager()
@@ -103,7 +78,5 @@ for image_list in tuple_list_2_2:
     manager.update_tables(image_list)
 
 freq_tab = manager.get_freq_tab()
-prob_tab = manager.get_prob_tab()
 
 print("Frequency table:", freq_tab)
-print("Probability table:", prob_tab)
