@@ -127,6 +127,7 @@ def reshape_tuples(data, reshape_from, reshape_to):
             strings.append(i)
             idx.append(len(tuples)*offsets + len(strings)-1)
 
+    # tuples to numpy array
     ori_shape = (len(tuples), ) + reshape_from
     ori_arr = np.array(tuples).reshape(ori_shape)
 
@@ -138,6 +139,7 @@ def reshape_tuples(data, reshape_from, reshape_to):
     elif col_offsets == 1:    # i.e. (n, 2, 2) -> (2n, 1, 2)
         new_arr = ori_arr.reshape(new_shape).transpose(1, 0, 2)
 
+    # numpy array back to tuples
     tuples = list(map(tuple, new_arr.reshape(
         new_shape[0], np.prod(reshape_to))))
 
@@ -147,8 +149,7 @@ def reshape_tuples(data, reshape_from, reshape_to):
     str_mask = np.zeros(total_length, dtype=bool)
     str_mask[idx] = True
     merged[str_mask] = strings
-    for i, index in enumerate(np.where(~str_mask)[0]):
-        merged[index] = tuples[i]
+    merged[~str_mask] = np.fromiter(tuples, dtype=object)
 
     return list(merged)
 
