@@ -1,17 +1,8 @@
-import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import sys
-import os
 from tqdm import tqdm
-
-root = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(root)
-
-from mbpe import basic
-from mbpe import utils
-
+import mbpe
 
 batch_size = 1
 random_seed = 1
@@ -29,20 +20,21 @@ train_dataset = torchvision.datasets.MNIST(
 train_loader = torch.utils.data.DataLoader(
     train_dataset, batch_size=batch_size, shuffle=False)
 
-
 if __name__ == "__main__":
-    tokenizer = basic.Tokenizer()
+    tokenizer = mbpe.tokenizer.Tokenizer()
     tokenized_tuples = []
 
     vocab_len = tokenizer.get_vocab_len()
-    progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
+    # progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
+    progress = train_loader
 
-    dim = (2, 2)
+    dim = (1, 2, 2)
+    dim_index = [1, 2, 3]
     for image, label in progress:
-        tuples = utils.pixel_to_tuples(image, dim)
-        tokenized = tokenizer.train_encode(tuples, dim=dim, min_freq=2)
-        # tokenizer.train(image, dim=(2, 2), min_freq=2)
-        # tokenized = tokenizer.encode(image, dim=(2, 2), min_freq=2)
+        tuples = mbpe.utils.tensor_to_tuples(image, dim, dim_index)
+        print(tuples)
+        exit()
+        tokenized = tokenizer.train(tuples, dim_index, dim=dim, min_freq=2)
         tokenized_tuples.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
