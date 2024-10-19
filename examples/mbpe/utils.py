@@ -49,31 +49,31 @@ def pixel_to_tuples(image, dim):
     i.e. dim = (2, 2) and H = W = 10 or
          dim = (3, 3) and H = W = 15
     """
-    _, H, W = image.shape
-    pixel_unshuffle = torch.nn.PixelUnshuffle(H//dim[0])
-    output = np.array(pixel_unshuffle(image))
-    tuples = list(map(tuple, output.reshape(-1, np.prod(dim))))
-    return tuples
+    # _, H, W = image.shape
+    # pixel_unshuffle = torch.nn.PixelUnshuffle(H//dim[0])
+    # output = np.array(pixel_unshuffle(image))
+    # tuples = list(map(tuple, output.reshape(-1, np.prod(dim))))
+    # return tuples
 
     """
     Below works for dim with any dimensions and both H and W should be divisible by dim
     i.e. dim = (4, 2) and H = W = 20 or
          dim = (3, 3) and H = W = 15
     """
-    # image = np.array(image.squeeze())
-    # H, W = image.shape
-    # row_offsets = H // dim[0]
-    # col_offsets = W // dim[1]
+    image = np.array(image.squeeze())
+    H, W = image.shape
+    row_offsets = H // dim[0]
+    col_offsets = W // dim[1]
 
-    # row_indices = np.arange(H).reshape(row_offsets, dim[0], order='F')
-    # col_indices = np.arange(W).reshape(col_offsets, dim[1], order='F')
+    row_indices = np.arange(H).reshape(row_offsets, dim[0], order='F')
+    col_indices = np.arange(W).reshape(col_offsets, dim[1], order='F')
 
-    # tuples = [
-    #     tuple(image[np.ix_(row_indices_group, col_indices_group)].flatten())
-    #     for row_indices_group in row_indices
-    #     for col_indices_group in col_indices
-    # ]
-    # return tuples
+    tuples = [
+        tuple(image[np.ix_(row_indices_group, col_indices_group)].flatten())
+        for row_indices_group in row_indices
+        for col_indices_group in col_indices
+    ]
+    return tuples
 
 
 def reshape_tuples(data, reshape_from, reshape_to):

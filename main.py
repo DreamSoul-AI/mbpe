@@ -27,7 +27,7 @@ train_dataset = torchvision.datasets.MNIST(
     root='./data', train=True, download=True, transform=transform)
 
 train_loader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=False)
+    train_dataset, batch_size=batch_size, shuffle=True)
 
 
 if __name__ == "__main__":
@@ -39,10 +39,11 @@ if __name__ == "__main__":
 
     dim = (2, 2)
     for image, label in progress:
-        tuples = utils.pixel_to_tuples(image, dim)
-        tokenized = tokenizer.train_encode(tuples, dim=dim, min_freq=2)
-        # tokenizer.train(image, dim=(2, 2), min_freq=2)
-        # tokenized = tokenizer.encode(image, dim=(2, 2), min_freq=2)
+        image = image.squeeze(0)
+        shuffled_image = utils.pixel_to_tuples(image, dim)
+        # tokenized = tokenizer.train_encode(shuffled_image, dim=dim, min_freq=2)
+        tokenizer.train(shuffled_image, dim=dim, min_freq=2, root_min_freq=2)
+        tokenized = tokenizer.encode(shuffled_image, dim=dim)
         tokenized_tuples.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
