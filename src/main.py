@@ -31,18 +31,10 @@ if __name__ == "__main__":
     dim = (1, 2, 2)
     dim_index = [1, 2, 3]
     for image, label in progress:
-<<<<<<< HEAD:main.py
-        image = image.squeeze(0)
-        shuffled_image = utils.pixel_to_tuples(image, dim)
-        # tokenized = tokenizer.train_encode(shuffled_image, dim=dim, min_freq=2)
-        tokenizer.train(shuffled_image, dim=dim, min_freq=2, root_min_freq=2)
-        tokenized = tokenizer.encode(shuffled_image, dim=dim)
-=======
         tuples = mbpe.utils.tensor_to_tuples(image, dim, dim_index)
         print(tuples)
         exit()
         tokenized = tokenizer.train(tuples, dim_index, dim=dim, min_freq=2)
->>>>>>> 645fb27832231f1bc654d7512f24ffec04e01cbb:src/main.py
         tokenized_tuples.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
