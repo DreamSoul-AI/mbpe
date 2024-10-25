@@ -22,7 +22,7 @@ train_loader = torch.utils.data.DataLoader(
 
 if __name__ == "__main__":
     tokenizer = mbpe.tokenizer.Tokenizer()
-    tokenized_tuples = []
+    output_ids = []
 
     vocab_len = tokenizer.get_vocab_len()
     # progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
@@ -33,12 +33,14 @@ if __name__ == "__main__":
     for image, label in progress:
         tuples = mbpe.utils.tensor_to_tuples(image, dim, dim_index)
         print(tuples)
-        exit()
-        tokenized = tokenizer.train(tuples, dim_index, dim=dim, min_freq=2)
-        tokenized_tuples.append(tokenized)
+        tokenizer.train(tuples, dim=dim, min_freq=2)
+        tokenized = tokenizer.encode(tuples, dim=dim)
+
+        output_ids.append(tokenized)
 
         vocab_len = tokenizer.get_vocab_len()
-        progress.set_description(f"vocab size [{vocab_len}]")
+        break
+        # progress.set_description(f"vocab size [{vocab_len}]")
 
     print('vocabulary:', tokenizer.get_vocab())
-    print('tokenized_tuples:', tokenized_tuples)
+    print('output_ids:', output_ids)
