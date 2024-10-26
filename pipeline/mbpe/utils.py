@@ -4,28 +4,41 @@ import numpy as np
 from collections import defaultdict
 
 # helper functions
-
-
 def find_tuple_shapes(dim):
-    num1, num2 = dim[0], dim[1]
+    """
+    Find all possible shapes of tuples based on the given dimensions.
 
-    divisor1 = []
-    for i in range(num1-1, 0, -1):
-        if num1 % i == 0:
-            divisor1.append(i)
+    Args:
+        dim (tuple): A tuple of dimensions.
+    
+    Returns:
+        shapes: A list of tuples representing all possible shapes.
+    """
+    
+    # Find divisors for each dimension in desceding order
+    # Each smaller divisor must also be divisible by the previous larger divisor
+    # e.g. (2, 2) -> (2, 2), (1, 2), (1, 1); (6, 2) -> (6, 2), (3, 2), (1, 2), (1, 1)
+    divisors = []
+    for d in dim:
+        tmp = []
+        new_divisor = d
+        for i in range(d-1, 0, -1):
+            if d % i == 0 and new_divisor % i == 0:
+                tmp.append(i)
+                new_divisor = i
+        divisors.append(tmp)
+    
+    # Generate all possible shapes
+    shapes = [dim]
+    current_dim = dim
+    for i, div in enumerate(divisors):
+        for d in div:
+            new_shape = list(current_dim)
+            new_shape[i] = d
+            current_dim = tuple(new_shape)
+            shapes.append(tuple(new_shape))
 
-    divisor2 = []
-    for i in range(num2-1, 0, -1):
-        if num2 % i == 0:
-            divisor2.append(i)
-
-    tuple_shapes = [dim]
-    for div in divisor1:
-        tuple_shapes.append((div, num2))
-    for div in divisor2:
-        tuple_shapes.append((1, div))
-
-    return tuple_shapes
+    return shapes
 
 
 def pixel_to_tuples(image, dim):

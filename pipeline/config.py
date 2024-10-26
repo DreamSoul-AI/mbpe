@@ -6,7 +6,7 @@ class Config:
     dim: tuple = (2, 2)
     min_freq: int = 2
     root_min_freq: int = 2
-    size = 10        # number of images to train on; 0 stands for full dataset
+    size = 1000        # number of images to train on; 0 stands for full dataset
     max_length: None = None
 
     # Model configurations

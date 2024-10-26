@@ -15,11 +15,11 @@ class BaseTokenizer:
     def get_vocab_len(self):
         return len(self.vocab)
 
-    def train(self, data, vocab_size, dim, min_freq):
+    def train(self, data, dim, min_freq):
         # Tokenizer can train a vocabulary of size vocab_size from given data
         raise NotImplementedError
 
-    def encode(self, data, dim, min_freq):
+    def encode(self, data, dim):
         # Tokenizer can encode a list of tuples based on the trained vocabulary
         raise NotImplementedError
 
