@@ -77,7 +77,30 @@ def find_tuple_shapes(dim):
     return shapes
 
 
-def reshape_tuples(data, reshape_from, reshape_to):
+def split(data, scale_factor):
+    tuples = []
+    strings = []
+    idx = []
+    for i in data:
+        if isinstance(i, tuple):
+            tuples.append(i)
+        else:
+            idx.append(len(tuples) * scale_factor + len(strings))
+            strings.append(i)
+    return tuples, strings, idx
+
+
+def join(tuples, strings, idx):
+    total_length = len(tuples) + len(strings)
+    merged = np.empty(total_length, dtype=object)
+    str_mask = np.zeros(total_length, dtype=bool)
+    str_mask[idx] = True
+    merged[str_mask] = strings
+    merged[~str_mask] = np.fromiter(tuples, dtype=object)
+    return list(merged)
+
+
+def tuple_reshape(data, reshape_from, reshape_to):
     """
     Reshape the given data into tuples based on the specified dimensions.
 
@@ -93,68 +116,34 @@ def reshape_tuples(data, reshape_from, reshape_to):
         ValueError: If the input data has more than 3 dimensions.
     """
 
-    row_offsets = reshape_from[0] // reshape_to[0]
-    col_offsets = reshape_from[1] // reshape_to[1]
-
-    # new = []
-    # for i in data:
-    #     if isinstance(i, tuple):
-    #         np_array = np.array(i).reshape(reshape_from)
-    #         row_indices = np.arange(reshape_from[0]).reshape(
-    #             row_offsets, reshape_to[0], order='F')
-    #         col_indices = np.arange(reshape_from[1]).reshape(
-    #             col_offsets, reshape_to[1], order='F')
-
-    #         tuples = [
-    #             tuple(
-    #                 np_array[np.ix_(row_indices_group, col_indices_group)].flatten())
-    #             for row_indices_group in row_indices
-    #             for col_indices_group in col_indices
-    #         ]
-    #         new += tuples
-    #     else:
-    #         new.append(i)
-
-    # print(new)
-
-    offsets = col_offsets if row_offsets == 1 else row_offsets
+    # find the dimension that changes
+    downscale_factor = None
+    downscale_factor_idx = None
+    base_index = []
+    index_accum = 0
+    for i in range(len(reshape_from)):
+        base_index.append(i+index_accum+1)
+        if reshape_from[i] != reshape_to[i]:
+            downscale_factor = reshape_from[i] // reshape_to[i]
+            downscale_factor_idx = i + 1 + 1
+            index_accum += 1 
 
     # separate tuples and strings
-    tuples = []
-    strings = []
-    idx = []
-    for i in data:
-        if isinstance(i, tuple):
-            tuples.append(i)
-        else:
-            strings.append(i)
-            idx.append(len(tuples) * offsets + len(strings) - 1)
+    tuples, strings, str_idx = split(data, downscale_factor)
 
-    # tuples to numpy array
-    ori_shape = (len(tuples),) + reshape_from
-    ori_arr = np.array(tuples).reshape(ori_shape)
+    original_shape = (len(tuples),) + reshape_from
+    original_array = np.array(tuples).reshape(original_shape)
+    new_shape = [len(tuples)] + list(reshape_to)
+    new_shape.insert(downscale_factor_idx, downscale_factor)
+    transpose_order = [0, downscale_factor_idx] + base_index
+    new_array = original_array.reshape(new_shape).transpose(transpose_order)
+    new_len = len(tuples) * downscale_factor
+    downscaled_tuples = list(map(tuple, new_array.reshape(new_len, np.prod(reshape_to))))
 
-    new_shape = (offsets * len(tuples),) + reshape_to
-    # reshape based on the dimension that changes
-    if row_offsets == 1:  # i.e. (n, 2, 2) -> (2n, 2, 1)
-        new_arr = ori_arr.reshape(ori_shape[0], np.prod(
-            reshape_from) // offsets, offsets).transpose(0, 2, 1)
-    elif col_offsets == 1:  # i.e. (n, 2, 2) -> (2n, 1, 2)
-        new_arr = ori_arr.reshape(new_shape).transpose(1, 0, 2)
+    # merge tuples and strings back
+    reshaped = join(downscaled_tuples, strings, str_idx)
 
-    # numpy array back to tuples
-    tuples = list(map(tuple, new_arr.reshape(
-        new_shape[0], np.prod(reshape_to))))
-
-    # merge tuples and strings back to one list
-    total_length = len(tuples) + len(strings)
-    merged = np.empty(total_length, dtype=object)
-    str_mask = np.zeros(total_length, dtype=bool)
-    str_mask[idx] = True
-    merged[str_mask] = strings
-    merged[~str_mask] = np.fromiter(tuples, dtype=object)
-
-    return list(merged)
+    return reshaped
 
 
 def get_freq_tuples(tuple_list, min_freq):

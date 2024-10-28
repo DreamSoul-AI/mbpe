@@ -48,13 +48,11 @@ class Tokenizer(BaseTokenizer):
 
         tuple_list = data
         shapes = find_tuple_shapes(dim)
-        print(shapes)
-        exit()
 
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
-                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
+                tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
 
             # build root vocabulary
             if i == len(shapes) - 1:
@@ -116,7 +114,7 @@ class Tokenizer(BaseTokenizer):
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
-                tuple_list = reshape_tuples(tuple_list, shapes[i-1], shapes[i])
+                tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
 
             # update with the root vocabulary
             for i, t in enumerate(tuple_list):

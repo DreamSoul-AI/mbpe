@@ -25,9 +25,9 @@ def pad_sequences(sequences, pad_token_id=0, max_length=None):
 def train_tokenizer(input_image, mbpe_tokenizer, config, verbose=False):
     outputs = []
     vocab_len = mbpe_tokenizer.get_vocab_len()
-    progress = tqdm(input_image, desc=f"vocab size [{vocab_len}]")
 
     print('Start training MBPE...')
+    progress = tqdm(input_image, desc=f"vocab size [{vocab_len}]")
     for image in progress:
         mbpe_tokenizer.train(image, dim=config.dim, min_freq=config.min_freq, root_min_freq=config.root_min_freq)
         encoded = mbpe_tokenizer.encode(image, dim=config.dim)
