@@ -33,9 +33,6 @@ def tensor_to_tuples(tensor, dim, dim_index):
     dim = _tuple(dim)
     scale_factor = [size[dim_index[i]] // dim[i] for i in range(len(dim_index))]
     unshuffled_tensor = tensor_unshuffle(tensor, scale_factor, dim_index)
-    shuffled_tensor = tensor_shuffle(unshuffled_tensor, scale_factor, dim_index)
-    print(unshuffled_tensor.size())
-    print(shuffled_tensor.size())
     tuples = list(map(tuple, unshuffled_tensor.numpy().reshape(-1, np.prod(dim))))
     return tuples
 
@@ -146,7 +143,7 @@ def tuple_reshape(data, reshape_from, reshape_to):
     return reshaped
 
 
-def get_freq_tuples(tuple_list, min_freq):
+def filter_data(data, min_freq):
     """
     Select tuple elements that appear more than min_freq times
 
@@ -158,13 +155,14 @@ def get_freq_tuples(tuple_list, min_freq):
         filtered_array (list): A filtered list of tuples.
     """
 
-    new_tuple_list = [item for item in tuple_list if isinstance(item, tuple)]
+    new_tuple_list = [item for item in data if isinstance(item, tuple)]
     np_tuple_list = np.fromiter(new_tuple_list, dtype=object)
     unique_elements, counts = np.unique(np_tuple_list, return_counts=True)
-    return unique_elements[counts >= min_freq]
+    unique_elements = unique_elements[counts >= min_freq]
+    return unique_elements
 
 
-def get_freq_pairs(tuple_list):
+def get_freq_pairs(tuple_list): # TODO: try without for loop
     """
     Computes the frequency of all tuple pairs.
 

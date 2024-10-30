@@ -32,7 +32,7 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, dim, min_freq=2, root_min_freq=2):
+    def train(self, data, shapes, min_freq=2, root_min_freq=2):
         """
         Train a vocabulary of using the provided data.
 
@@ -45,23 +45,18 @@ class Tokenizer(BaseTokenizer):
         Returns:
         - None
         """
-
-        tuple_list = data
-        shapes = find_tuple_shapes(dim)
-
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
-                tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
-
+                data = tuple_reshape(data, shapes[i-1], shapes[i]) ## TODO: reshape needs refactor
             # build root vocabulary
             if i == len(shapes) - 1:
                 # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
                 root_min_freq = 1
-            target_tuple_list = get_freq_tuples(tuple_list, root_min_freq)
+
+            filtered_data = filter_data(data, root_min_freq)
             root_vocab = defaultdict(str)
-            for t in target_tuple_list:
-                # look up the root in the inverse_vocab
+            for t in filtered_data: ## TODO: Why for loop here?
                 str_code = self.inverse_vocab[t]
                 if str_code != '':
                     idx = str_code
@@ -71,11 +66,10 @@ class Tokenizer(BaseTokenizer):
                 root_vocab[t] = idx
 
             # update the list of tuples with the root vocabulary
-            tuple_list = [root_vocab[t]
-                          if t in root_vocab else t for t in tuple_list]
+            data = [root_vocab[t] if t in root_vocab else t for t in data] ## TODO: Why for loop here?
 
             while True:
-                stats = get_freq_pairs(tuple_list)
+                stats = get_freq_pairs(data)
                 pair, freq = get_max_pair(stats)
 
                 if freq < min_freq:
@@ -89,8 +83,7 @@ class Tokenizer(BaseTokenizer):
                     idx = str(len(self.vocab))
                     update_vocab(self.vocab, self.inverse_vocab, pair, idx)
 
-                tuple_list = merge(tuple_list, pair, idx)
-
+                data = merge(data, pair, idx)
         return
 
     def encode(self, data, dim):
@@ -120,7 +113,7 @@ class Tokenizer(BaseTokenizer):
             for i, t in enumerate(tuple_list):
                 if t in self.inverse_vocab.keys():
                     tuple_list[i] = self.inverse_vocab[t]
-            
+
             # merge pairs
             while True:
                 stats = get_freq_pairs(tuple_list)
