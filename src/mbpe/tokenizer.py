@@ -1,3 +1,4 @@
+import torch
 from .utils import *
 from collections import defaultdict
 
@@ -32,7 +33,7 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, shapes, min_freq=2, root_min_freq=2):
+    def train(self, data, shapes, dim_index, min_freq=2, root_min_freq=2):
         """
         Train a vocabulary of using the provided data.
 
@@ -45,6 +46,24 @@ class Tokenizer(BaseTokenizer):
         Returns:
         - None
         """
+        _tuple = ntuple(len(dim_index))
+        shapes = list(_tuple(shapes))
+        dtype = data.dtype
+
+        orig_size = data.size()
+        scale_factor = [orig_size[dim_index[i]] // shapes[i] for i in range(len(dim_index))]
+        unshuffled_data = tensor_unshuffle(data, scale_factor, dim_index)
+        unshuffled_size = unshuffled_data.size()
+        shuffled_data = tensor_shuffle(unshuffled_data, scale_factor, dim_index)
+        print(torch.allclose(data, shuffled_data))
+        tuple_list = tensor_to_tuple(unshuffled_data, shapes)
+        code_list = []
+        code = []
+        unshuffled_data_2 = tuple_to_tensor(tuple_list, shapes, unshuffled_size, dtype)
+        print(unshuffled_data_2.size())
+        print(torch.allclose(unshuffled_data_2, unshuffled_data))
+        exit()
+
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:

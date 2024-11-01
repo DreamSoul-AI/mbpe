@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from collections.abc import Iterable
 from collections import defaultdict
 from itertools import repeat
@@ -14,27 +15,39 @@ def ntuple(n):
     return parse
 
 
-def tensor_to_tuples(tensor, dim, dim_index):
-    """
-    Reshape the given data into tuples based on the specified dimensions.
+def tensor_to_tuple(tensor, shapes):
+    reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
+    data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
+    return data
 
-    Args:
-        data (tensor): The input image to be reshaped into tuples.
-        dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
 
-    Returns:
-        tuples: A list of tuples generated through reshaping the data.
+def tuple_to_tensor(tuple_list, shapes, orig_size, dtype):
+    reshaped_tensor = torch.tensor(tuple_list).to(dtype)
+    tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes).reshape(orig_size)
+    return tensor
 
-    Raises:
-        ValueError: If the input data has more than 3 dimensions.
-    """
-    _tuple = ntuple(len(dim_index))
-    size = tensor.size()
-    dim = _tuple(dim)
-    scale_factor = [size[dim_index[i]] // dim[i] for i in range(len(dim_index))]
-    unshuffled_tensor = tensor_unshuffle(tensor, scale_factor, dim_index)
-    tuples = list(map(tuple, unshuffled_tensor.numpy().reshape(-1, np.prod(dim))))
-    return tuples
+
+# def unshuffle_tensor(tensor, dim, dim_index):
+#     """
+#     Reshape the given data into tuples based on the specified dimensions.
+#
+#     Args:
+#         data (tensor): The input image to be reshaped into tuples.
+#         dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
+#
+#     Returns:
+#         tuples: A list of tuples generated through reshaping the data.
+#
+#     Raises:
+#         ValueError: If the input data has more than 3 dimensions.
+#     """
+#     # _tuple = ntuple(len(dim_index))
+#     size = tensor.size()
+#     # dim = list(_tuple(dim))
+#     scale_factor = [size[dim_index[i]] // dim[i] for i in range(len(dim_index))]
+#     unshuffled_tensor = tensor_unshuffle(tensor, scale_factor, dim_index)
+#     # tuples = list(map(tuple, unshuffled_tensor.numpy().reshape(-1, np.prod(dim))))
+#     return unshuffled_tensor
 
 
 def find_tuple_shapes(dim):
@@ -47,7 +60,7 @@ def find_tuple_shapes(dim):
     Returns:
         shapes: A list of tuples representing all possible shapes.
     """
-    
+
     # Find divisors for each dimension in desceding order
     # Each smaller divisor must also be divisible by the previous larger divisor
     # e.g. (2, 2) -> (2, 2), (1, 2), (1, 1); (6, 2) -> (6, 2), (3, 2), (1, 2), (1, 1)
@@ -55,12 +68,12 @@ def find_tuple_shapes(dim):
     for d in dim:
         tmp = []
         new_divisor = d
-        for i in range(d-1, 0, -1):
+        for i in range(d - 1, 0, -1):
             if d % i == 0 and new_divisor % i == 0:
                 tmp.append(i)
                 new_divisor = i
         divisors.append(tmp)
-    
+
     # Generate all possible shapes
     shapes = [dim]
     current_dim = dim
@@ -119,13 +132,13 @@ def tuple_reshape(data, reshape_from, reshape_to):
     base_index = []
     index_accum = 0
     for i in range(len(reshape_from)):
-        base_index.append(i+index_accum+1)
+        base_index.append(i + index_accum + 1)
         if reshape_from[i] != reshape_to[i]:
             downscale_factor = reshape_from[i] // reshape_to[i]
             downscale_factor_idx = i + 1 + 1
-            index_accum += 1 
+            index_accum += 1
 
-    # separate tuples and strings
+            # separate tuples and strings
     tuples, strings, str_idx = split(data, downscale_factor)
 
     original_shape = (len(tuples),) + reshape_from
@@ -162,7 +175,7 @@ def filter_data(data, min_freq):
     return unique_elements
 
 
-def get_freq_pairs(tuple_list): # TODO: try without for loop
+def get_freq_pairs(tuple_list):  # TODO: try without for loop
     """
     Computes the frequency of all tuple pairs.
 

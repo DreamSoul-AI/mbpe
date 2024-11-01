@@ -25,10 +25,8 @@ def tensor_unshuffle(tensor, downscale_factor, dim_index):
 
 def tensor_shuffle(tensor, upscale_factor, dim_index):
     tensor_size = list(tensor.size())
-    print(tensor_size)
     base_size = list(tensor_size[2:])
     unmerged_size = [tensor_size[0]] + upscale_factor + base_size
-    print(unmerged_size)
     unmerged_tensor = tensor.view(unmerged_size)
     base_index = list(range(len(upscale_factor) + 1, len(upscale_factor) + 1 + len(base_size)))
     downscale_factor_index = list(range(1, len(dim_index) + 1))
