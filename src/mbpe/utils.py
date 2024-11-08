@@ -156,6 +156,20 @@ def tuple_reshape(data, reshape_from, reshape_to):
     return reshaped
 
 
+def find_root_indices(tensor, min_freq, vocab):
+    _, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=1)
+    count_indices = torch.nonzero(counts >= min_freq).squeeze()
+    code = torch.arange(len(vocab), len(vocab) + count_indices.size(0))
+    full_mapping = torch.full((counts.size(0),), -1)
+    full_mapping[count_indices] = code
+    mapped_values = full_mapping[inverse_indices]
+    tuple_indices = torch.where(mapped_values == -1)[0]
+    code_indices = torch.where(mapped_values != -1)[0]
+    print(code_indices)
+    exit()
+    return tuple_indices, code_indices
+
+
 def filter_data(data, min_freq):
     """
     Select tuple elements that appear more than min_freq times

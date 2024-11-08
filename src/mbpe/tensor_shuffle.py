@@ -2,6 +2,7 @@ import math
 
 def tensor_unshuffle(tensor, downscale_factor, dim_index):
     tensor_size = list(tensor.size())
+    length_index = [i for i in range(1, len(tensor_size)) if i not in dim_index]
     base_index = []
     downscale_factor_index = []
     index_accum = 0
@@ -13,11 +14,14 @@ def tensor_unshuffle(tensor, downscale_factor, dim_index):
         downscale_factor_index.append(dim_index_i + 1)
         index_accum += 1
     reshaped_tensor = tensor.view(tensor_size)
-    permute_order = [0] + downscale_factor_index + base_index
+    permute_order = [0] + length_index + downscale_factor_index + base_index
     permuted_tensor = reshaped_tensor.permute(permute_order)
     downscale_size = [tensor_size[i] for i in downscale_factor_index]
     base_size = [tensor_size[i] for i in base_index]
-    merged_size = math.prod(downscale_size)
+    if len(length_index) == 0:
+        merged_size = math.prod(downscale_size)
+    else:
+        merged_size = math.prod(downscale_size) * tensor_size[length_index[0]]
     unshuffled_size = [tensor_size[0]] + [merged_size] + base_size
     unshuffled_tensor = permuted_tensor.reshape(unshuffled_size)
     return unshuffled_tensor
