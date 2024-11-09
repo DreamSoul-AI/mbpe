@@ -50,37 +50,45 @@ class Tokenizer(BaseTokenizer):
         """
 
         dtype = data.dtype
+        orig_size = data.size()
         shapes = find_tuple_shapes(max_shape)
 
+        tuple_indices = []
         code_list = []
         code_indices = []
         for shape in shapes:
-            orig_size = data.size()
             n = len(orig_size)
-            dim_index = list(range(n - 3, n))
+            dim_index = list(range(n - 3, n))   # only last 3 dimensions are considered
             # print(dim_index)
             _tuple = ntuple(len(dim_index))
             shape = list(_tuple(shape))
 
-            # 1. reshape the tensor
             scale_factor = [orig_size[dim_index[i]] // shape[i] for i in range(len(dim_index))]
+            # 1. split the data into tuples and codes (exclude the first iteration)
             if len(code_list) > 0:
-                tuple_list, code_list, code_indices = split(data, list(set(scale_factor))[-1])
-                tuple_list = tuple_to_tensor(tuple_list, shape, orig_size, dtype)
+                data, tuple_indices, code_list, code_indices = split(data, list(set(scale_factor))[-1])
+                orig_size[1] = len(data)    # update the length dimension
+                data = tuple_to_tensor(data, shape, orig_size, dtype)
+            # 2. reshape the tensor
             unshuffled_tensor = tensor_unshuffle(data, scale_factor, dim_index)
+            orig_size = list(unshuffled_tensor.size())    # store for next iteration
+            # print(orig_size)
             
-            # 2. find root vocabulary
-            root, code_list, code_indices = find_root(unshuffled_tensor, root_min_freq, self.vocab)
-            root = tensor_to_tuple(root, shape)[0]
-            update_vocab(self.vocab, self.inverse_vocab, root, set(code_list))
-            
-            mask = torch.zeros(unshuffled_tensor.size(1), dtype=torch.bool)
-            mask[code_indices] = True
-            unshuffled_tuples = tensor_to_tuple(unshuffled_tensor[:, ~mask], shape)[0]  #TODO: why [0]?
-            data = join(unshuffled_tuples, code_list, code_indices)
+            # 3. find root vocabulary
+            if shape == [1, 1, 1]:
+                root_min_freq = 1
+            root, root_indices, codes, indices = find_root(unshuffled_tensor, root_min_freq, self.vocab)
+            update_vocab(self.vocab, self.inverse_vocab, tensor_to_tuple(root, shape)[0], sorted(set(codes)))
+
+            tuple_list = tensor_to_tuple(unshuffled_tensor[:, root_indices], shape)[0]  #TODO: why [0]?
+            if len(tuple_indices) > 0:
+                indices = torch.tensor(tuple_indices)[indices].tolist()
+            code_list.extend(codes)
+            code_indices.extend(indices)
+            data = join(tuple_list, code_list, code_indices)
             # print(data)
             
-            # 3. merge
+            # 4. merge
             while True:
                 stats = get_freq_pairs(data)
                 pair, freq = get_max_pair(stats)
@@ -98,49 +106,6 @@ class Tokenizer(BaseTokenizer):
 
                 data = merge(data, pair, idx)
             
-            exit()
-
-        
-
-        for i in range(len(shapes)):
-            # the input is already reshaped so we skip reshaping in the first iteration
-            if i > 0:
-                data = tuple_reshape(data, shapes[i-1], shapes[i]) ## TODO: reshape needs refactor
-            # build root vocabulary
-            if i == len(shapes) - 1:
-                # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
-                root_min_freq = 1
-
-            filtered_data = filter_data(data, root_min_freq)
-            root_vocab = defaultdict(str)
-            for t in filtered_data: ## TODO: Why for loop here?
-                str_code = self.inverse_vocab[t]
-                if str_code != '':
-                    idx = str_code
-                else:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, t, idx)
-                root_vocab[t] = idx
-
-            # update the list of tuples with the root vocabulary
-            data = [root_vocab[t] if t in root_vocab else t for t in data] ## TODO: Why for loop here?
-
-            while True:
-                stats = get_freq_pairs(data)
-                pair, freq = get_max_pair(stats)
-
-                if freq < min_freq:
-                    break
-
-                # look up the pair in the inverse_vocab
-                str_code = self.inverse_vocab[pair]
-                if str_code != '':
-                    idx = str_code
-                else:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-
-                data = merge(data, pair, idx)
         return
 
     def encode(self, data, dim):
