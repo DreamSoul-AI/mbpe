@@ -41,6 +41,7 @@ def find_tuple_shapes(dim):
     # Find divisors for each dimension in desceding order
     # Each smaller divisor must also be divisible by the previous larger divisor
     # e.g. (2, 2) -> (2, 2), (1, 2), (1, 1); (6, 2) -> (6, 2), (3, 2), (1, 2), (1, 1)
+    dim = list(dim)
     divisors = []
     for d in dim:
         tmp = []
@@ -56,10 +57,10 @@ def find_tuple_shapes(dim):
     current_dim = dim
     for i, div in enumerate(divisors):
         for d in div:
-            new_shape = list(current_dim)
+            new_shape = current_dim.copy()
             new_shape[i] = d
-            current_dim = tuple(new_shape)
-            shapes.append(tuple(new_shape))
+            current_dim = new_shape
+            shapes.append(new_shape)
 
     return shapes
 
