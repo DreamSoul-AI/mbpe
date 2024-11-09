@@ -156,18 +156,17 @@ def tuple_reshape(data, reshape_from, reshape_to):
     return reshaped
 
 
-def find_root_indices(tensor, min_freq, vocab):
-    _, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=1)
-    count_indices = torch.nonzero(counts >= min_freq).squeeze()
-    code = torch.arange(len(vocab), len(vocab) + count_indices.size(0))
+def find_root(tensor, min_freq, vocab):
+    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=1)
+    freq_mask = counts >= min_freq
+    new_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
     full_mapping = torch.full((counts.size(0),), -1)
-    full_mapping[count_indices] = code
+    full_mapping[freq_mask] = new_codes
     mapped_values = full_mapping[inverse_indices]
-    tuple_indices = torch.where(mapped_values == -1)[0]
+    # tuple_indices = torch.where(mapped_values == -1)[0]
     code_indices = torch.where(mapped_values != -1)[0]
-    print(code_indices)
-    exit()
-    return tuple_indices, code_indices
+    codes = mapped_values[code_indices]
+    return output[:, freq_mask], codes.tolist(), code_indices.tolist()
 
 
 def filter_data(data, min_freq):
@@ -224,23 +223,32 @@ def get_max_pair(pairs):
     return max_pair, freq
 
 
-def update_vocab(vocab, inv_vocab, pair, idx):
+def update_vocab(vocab, inv_vocab, pairs, indices):
     """
-    Update the vocabulary and inverse vocabulary with a new pair.
-
+    Update the vocabulary and inverse vocabulary with new pair(s).
+    
     Args:
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
         inv_vocab (dict): A dictionary mapping tuples to string codes.
-        pair (tuple): A pair of integers to be added to the vocabulary.
-        idx (str): The value to replace the merged pair in string type.
-
+        pairs (tuple or list): Either a single pair tuple or a list of pair tuples to be added.
+        indices (str or list): Either a single string index or a list of indices corresponding to the pairs.
+                             
     Returns:
-
+        None
     """
 
-    vocab[idx] = pair
-    inv_vocab[pair] = idx
-
+    if isinstance(pairs, tuple):
+        vocab[indices] = pairs
+        inv_vocab[pairs] = indices
+        return
+    
+    pairs, indices = list(pairs), list(indices)
+    if len(pairs) != len(indices):
+        raise ValueError("Number of pairs must match number of indices")
+        
+    for pair, idx in zip(pairs, indices):
+        vocab[idx] = pair
+        inv_vocab[pair] = idx
 
 def merge(tuple_list, vocab, idx):
     """

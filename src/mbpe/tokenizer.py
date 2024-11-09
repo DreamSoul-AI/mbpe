@@ -8,7 +8,9 @@ class BaseTokenizer:
 
     def __init__(self):
         self.vocab = defaultdict(tuple)
-        self.inverse_vocab = defaultdict(str)
+        self.inverse_vocab = defaultdict(int)
+        self.vocab[''] = 0
+        self.inverse_vocab[0] = ''
 
     def get_vocab(self):
         return self.vocab
@@ -46,43 +48,59 @@ class Tokenizer(BaseTokenizer):
         Returns:
         - None
         """
-        tuple_list = data
-        print(tuple_list.size())
+
         dtype = data.dtype
         shapes = find_tuple_shapes(max_shape)
 
+        code_list = []
+        code_indices = []
         for shape in shapes:
-            n = len(tuple_list.size())
+            orig_size = data.size()
+            n = len(orig_size)
             dim_index = list(range(n - 3, n))
             # print(dim_index)
             _tuple = ntuple(len(dim_index))
             shape = list(_tuple(shape))
 
             # 1. reshape the tensor
-            orig_size = tuple_list.size()
             scale_factor = [orig_size[dim_index[i]] // shape[i] for i in range(len(dim_index))]
-            unshuffled_data = tensor_unshuffle(tuple_list, scale_factor, dim_index)
-            unshuffled_size = unshuffled_data.size()
-            # shuffled_data = tensor_shuffle(unshuffled_data, scale_factor, dim_index)
-            # print(torch.allclose(data, shuffled_data))
-
-            tuple_indices = []
-            code_indices = []
-            code = []
+            if len(code_list) > 0:
+                tuple_list, code_list, code_indices = split(data, list(set(scale_factor))[-1])
+                tuple_list = tuple_to_tensor(tuple_list, shape, orig_size, dtype)
+            unshuffled_tensor = tensor_unshuffle(data, scale_factor, dim_index)
+            
             # 2. find root vocabulary
-            tuple_indices, code_indices = find_root_indices(unshuffled_data, root_min_freq, self.vocab)
-            tuple_list = unshuffled_data[:, tuple_indices]
-            print(tuple_list.size())
-            # tuple_list = tensor_to_tuple(unshuffled_data, shape)
+            root, code_list, code_indices = find_root(unshuffled_tensor, root_min_freq, self.vocab)
+            root = tensor_to_tuple(root, shape)[0]
+            update_vocab(self.vocab, self.inverse_vocab, root, set(code_list))
             
-            # unshuffled_data_2 = tuple_to_tensor(tuple_list, shape, unshuffled_size, dtype)
-            # print(unshuffled_data_2.size())
-            # print(torch.allclose(unshuffled_data_2, unshuffled_data))
-
+            mask = torch.zeros(unshuffled_tensor.size(1), dtype=torch.bool)
+            mask[code_indices] = True
+            unshuffled_tuples = tensor_to_tuple(unshuffled_tensor[:, ~mask], shape)[0]  #TODO: why [0]?
+            data = join(unshuffled_tuples, code_list, code_indices)
+            # print(data)
+            
             # 3. merge
-            
+            while True:
+                stats = get_freq_pairs(data)
+                pair, freq = get_max_pair(stats)
 
-        exit()
+                if freq < min_freq:
+                    break
+
+                # look up the pair in the inverse_vocab
+                code = self.inverse_vocab[pair]
+                if code != 0:
+                    idx = code
+                else:
+                    idx = len(self.vocab)
+                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+
+                data = merge(data, pair, idx)
+            
+            exit()
+
+        
 
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
