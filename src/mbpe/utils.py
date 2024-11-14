@@ -70,17 +70,18 @@ def split(data, scale_factor):
     tuples_indices = []
     codes = []
     code_indices = []
-    
+
     for item in data:
-        base_offset = len(tuples) * scale_factor + len(codes)     
+        base_offset = len(tuples) * scale_factor + len(codes)
         if isinstance(item, tuple):
             tuples.append(item)
             tuples_indices.extend(range(base_offset, base_offset + scale_factor))
         else:
             codes.append(item)
             code_indices.append(base_offset)
-    
+
     return tuples, tuples_indices, codes, code_indices
+
 
 def join(tuples, strings, idx):
     total_length = len(tuples) + len(strings)
@@ -93,16 +94,16 @@ def join(tuples, strings, idx):
 
 
 def find_root(tensor, min_freq, vocab):
-    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=1)
+    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
     freq_mask = counts >= min_freq
-    new_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
+    unique_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
     full_mapping = torch.full((counts.size(0),), -1)
-    full_mapping[freq_mask] = new_codes
+    full_mapping[freq_mask] = unique_codes
     mapped_values = full_mapping[inverse_indices]
     root_indices = torch.where(mapped_values == -1)[0]
     code_indices = torch.where(mapped_values != -1)[0]
     codes = mapped_values[code_indices]
-    return output[:, freq_mask], root_indices, codes.tolist(), code_indices.tolist()
+    return output[freq_mask], root_indices.tolist(), codes.tolist(), code_indices.tolist(), unique_codes.tolist()
 
 
 def get_freq_pairs(tuple_list):  # TODO: try without for loop
@@ -158,14 +159,16 @@ def update_vocab(vocab, inv_vocab, pairs, indices):
         vocab[indices] = pairs
         inv_vocab[pairs] = indices
         return
-    
+
     pairs, indices = list(pairs), list(indices)
     if len(pairs) != len(indices):
         raise ValueError("Number of pairs must match number of indices")
-        
-    for pair, idx in zip(pairs, indices):
-        vocab[idx] = pair
-        inv_vocab[pair] = idx
+
+    for pair, index in zip(pairs, indices):
+        vocab[index] = pair
+        inv_vocab[pair] = index
+    return
+
 
 def merge(tuple_list, vocab, idx):
     """
