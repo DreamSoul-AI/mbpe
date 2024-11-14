@@ -1,14 +1,30 @@
-import torch
-from .utils import *
+from dataclasses import dataclass
+from typing import List
 from collections import defaultdict
+from .utils import *
+import torch
+from torch import Tensor, dtype
+
+
+@dataclass
+class TrainingState:
+    """Holds the current state of training process"""
+    shape: List[int]
+    data: Tensor
+    data_dtype: dtype
+    orig_size: List[int]
+    tuple_indices: List[int]
+    code_list: List[int]
+    code_indices: List[int]
 
 
 class BaseTokenizer:
     """Base class for Tokenizer"""
-
     def __init__(self):
         self.vocab = defaultdict(tuple)
-        self.inverse_vocab = defaultdict(str)
+        self.inverse_vocab = defaultdict(int)
+        self.vocab[''] = 0
+        self.inverse_vocab[0] = ''
 
     def get_vocab(self):
         return self.vocab
@@ -33,7 +49,7 @@ class Tokenizer(BaseTokenizer):
     def __init__(self):
         super().__init__()
 
-    def train(self, data, shapes, dim_index, min_freq=2, root_min_freq=2):
+    def train(self, data, max_shape, min_freq=2, root_min_freq=2):
         """
         Train a vocabulary of using the provided data.
 
@@ -46,63 +62,23 @@ class Tokenizer(BaseTokenizer):
         Returns:
         - None
         """
-        _tuple = ntuple(len(dim_index))
-        shapes = list(_tuple(shapes))
-        dtype = data.dtype
 
-        orig_size = data.size()
-        scale_factor = [orig_size[dim_index[i]] // shapes[i] for i in range(len(dim_index))]
-        unshuffled_data = tensor_unshuffle(data, scale_factor, dim_index)
-        unshuffled_size = unshuffled_data.size()
-        shuffled_data = tensor_shuffle(unshuffled_data, scale_factor, dim_index)
-        print(torch.allclose(data, shuffled_data))
-        tuple_list = tensor_to_tuple(unshuffled_data, shapes)
-        code_list = []
-        code = []
-        unshuffled_data_2 = tuple_to_tensor(tuple_list, shapes, unshuffled_size, dtype)
-        print(unshuffled_data_2.size())
-        print(torch.allclose(unshuffled_data_2, unshuffled_data))
-        exit()
+        state = TrainingState(
+            shape=[],
+            data=data,
+            data_dtype=data.dtype,
+            orig_size=list(data.size()),
+            tuple_indices=[],
+            code_list=[],
+            code_indices=[]
+        )
 
-        for i in range(len(shapes)):
-            # the input is already reshaped so we skip reshaping in the first iteration
-            if i > 0:
-                data = tuple_reshape(data, shapes[i-1], shapes[i]) ## TODO: reshape needs refactor
-            # build root vocabulary
-            if i == len(shapes) - 1:
-                # set root_min_freq to 1 for the last iteration where each tuple only includes 1 element
-                root_min_freq = 1
+        shapes = find_tuple_shapes(max_shape)
 
-            filtered_data = filter_data(data, root_min_freq)
-            root_vocab = defaultdict(str)
-            for t in filtered_data: ## TODO: Why for loop here?
-                str_code = self.inverse_vocab[t]
-                if str_code != '':
-                    idx = str_code
-                else:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, t, idx)
-                root_vocab[t] = idx
+        for shape in shapes:
+            state.shape = shape
+            state = self._process_shape(state, min_freq, root_min_freq)
 
-            # update the list of tuples with the root vocabulary
-            data = [root_vocab[t] if t in root_vocab else t for t in data] ## TODO: Why for loop here?
-
-            while True:
-                stats = get_freq_pairs(data)
-                pair, freq = get_max_pair(stats)
-
-                if freq < min_freq:
-                    break
-
-                # look up the pair in the inverse_vocab
-                str_code = self.inverse_vocab[pair]
-                if str_code != '':
-                    idx = str_code
-                else:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-
-                data = merge(data, pair, idx)
         return
 
     def encode(self, data, dim):
@@ -166,3 +142,94 @@ class Tokenizer(BaseTokenizer):
         plain_list = [item for tup in decoded for item in tup]
 
         return plain_list
+
+    def _process_shape(self, state, min_freq, root_min_freq) -> TrainingState:
+        """Process data for a single shape configuration"""
+        n = len(state.orig_size)
+        dim_index = list(range(n - 3, n))  # last 3 dimensions
+        
+        # Calculate scale factors
+        scale_factor = [
+            state.orig_size[dim_index[i]] // state.shape[i]
+            for i in range(len(dim_index))
+        ]
+        
+        # Handle code splitting if necessary
+        if len(state.code_list) > 0:
+            state = self._handle_existing_codes(state, scale_factor)
+        
+        unshuffled_tensor = tensor_unshuffle(state.data, scale_factor, dim_index)
+        state.orig_size = list(unshuffled_tensor.size())    # Update state for next iteration
+        
+        # Handle root vocabulary
+        current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
+        state = self._update_root_vocabulary(state, unshuffled_tensor, current_root_min_freq)
+
+        # Merge vocabulary pairs
+        state = self._merge_pairs(state, min_freq)
+        
+        return state
+    
+    def _handle_existing_codes(self, state, scale_factor) -> TrainingState:
+        """Handle processing of existing codes"""
+        data, tuple_indices, code_list, code_indices = split(state.data, list(set(scale_factor))[-1])
+        orig_size = state.orig_size.copy()
+        orig_size[1] = len(data)    # update the length dimension
+        
+        return TrainingState(
+            shape=state.shape,
+            data=tuple_to_tensor(data, state.shape, orig_size, state.data_dtype),
+            data_dtype=state.data_dtype,
+            orig_size=orig_size,
+            tuple_indices=tuple_indices,
+            code_list=code_list,
+            code_indices=code_indices
+        )
+    
+    def _update_root_vocabulary(self, state, tensor, root_min_freq) -> TrainingState:
+        """Update vocabulary with new patterns"""
+        root, root_indices, codes, indices = find_root(tensor, root_min_freq, self.vocab)
+        
+        # update with root vocabulary
+        root_tuples = tensor_to_tuple(root, state.shape)[0]
+        update_vocab(self.vocab, self.inverse_vocab, root_tuples, sorted(set(codes)))
+        
+        # process tuple indices
+        tuple_list = tensor_to_tuple(tensor[:, root_indices], state.shape)[0]   #TODO: why [0]?
+        
+        # update current code indices
+        if len(state.tuple_indices) > 0:
+            indices = torch.tensor(state.tuple_indices)[indices].tolist()
+        new_code_list = state.code_list + codes
+        new_code_indices = state.code_indices + indices
+        
+        return TrainingState(
+            shape=state.shape,
+            data=join(tuple_list, new_code_list, new_code_indices),
+            data_dtype=state.data_dtype,
+            orig_size=state.orig_size,
+            tuple_indices=state.tuple_indices,
+            code_list=new_code_list,
+            code_indices=new_code_indices
+        )
+    
+    def _merge_pairs(self, state, min_freq) -> TrainingState:
+        """Merge pairs in the data"""
+        while True:
+            stats = get_freq_pairs(state.data)
+            pair, freq = get_max_pair(stats)
+
+            if freq < min_freq:
+                break
+
+            # look up the pair in the inverse_vocab
+            code = self.inverse_vocab[pair]
+            if code != 0:
+                idx = code
+            else:
+                idx = len(self.vocab)
+                update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+
+            state.data = merge(state.data, pair, idx)
+        
+        return state

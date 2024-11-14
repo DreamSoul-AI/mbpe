@@ -27,29 +27,6 @@ def tuple_to_tensor(tuple_list, shapes, orig_size, dtype):
     return tensor
 
 
-# def unshuffle_tensor(tensor, dim, dim_index):
-#     """
-#     Reshape the given data into tuples based on the specified dimensions.
-#
-#     Args:
-#         data (tensor): The input image to be reshaped into tuples.
-#         dim (tuple): A 2-tuple specifying the desired dimensions of the tuples.
-#
-#     Returns:
-#         tuples: A list of tuples generated through reshaping the data.
-#
-#     Raises:
-#         ValueError: If the input data has more than 3 dimensions.
-#     """
-#     # _tuple = ntuple(len(dim_index))
-#     size = tensor.size()
-#     # dim = list(_tuple(dim))
-#     scale_factor = [size[dim_index[i]] // dim[i] for i in range(len(dim_index))]
-#     unshuffled_tensor = tensor_unshuffle(tensor, scale_factor, dim_index)
-#     # tuples = list(map(tuple, unshuffled_tensor.numpy().reshape(-1, np.prod(dim))))
-#     return unshuffled_tensor
-
-
 def find_tuple_shapes(dim):
     """
     Find all possible shapes of tuples based on the given dimensions.
@@ -64,6 +41,7 @@ def find_tuple_shapes(dim):
     # Find divisors for each dimension in desceding order
     # Each smaller divisor must also be divisible by the previous larger divisor
     # e.g. (2, 2) -> (2, 2), (1, 2), (1, 1); (6, 2) -> (6, 2), (3, 2), (1, 2), (1, 1)
+    dim = list(dim)
     divisors = []
     for d in dim:
         tmp = []
@@ -79,26 +57,30 @@ def find_tuple_shapes(dim):
     current_dim = dim
     for i, div in enumerate(divisors):
         for d in div:
-            new_shape = list(current_dim)
+            new_shape = current_dim.copy()
             new_shape[i] = d
-            current_dim = tuple(new_shape)
-            shapes.append(tuple(new_shape))
+            current_dim = new_shape
+            shapes.append(new_shape)
 
     return shapes
 
 
 def split(data, scale_factor):
     tuples = []
-    strings = []
-    idx = []
-    for i in data:
-        if isinstance(i, tuple):
-            tuples.append(i)
+    tuples_indices = []
+    codes = []
+    code_indices = []
+    
+    for item in data:
+        base_offset = len(tuples) * scale_factor + len(codes)     
+        if isinstance(item, tuple):
+            tuples.append(item)
+            tuples_indices.extend(range(base_offset, base_offset + scale_factor))
         else:
-            idx.append(len(tuples) * scale_factor + len(strings))
-            strings.append(i)
-    return tuples, strings, idx
-
+            codes.append(item)
+            code_indices.append(base_offset)
+    
+    return tuples, tuples_indices, codes, code_indices
 
 def join(tuples, strings, idx):
     total_length = len(tuples) + len(strings)
@@ -110,69 +92,17 @@ def join(tuples, strings, idx):
     return list(merged)
 
 
-def tuple_reshape(data, reshape_from, reshape_to):
-    """
-    Reshape the given data into tuples based on the specified dimensions.
-
-    Args:
-        data (list): A list of combination of tuples and strings.
-        reshape_from (tuple): A 2-tuple specifying the current dimensions of the tuples.
-        reshape_to (tuple): A 2-tuple specifying the desired dimensions of the tuples.
-
-    Returns:
-        tuples: A list of tuples generated through reshaping the data.
-
-    Raises:
-        ValueError: If the input data has more than 3 dimensions.
-    """
-
-    # find the dimension that changes
-    downscale_factor = None
-    downscale_factor_idx = None
-    base_index = []
-    index_accum = 0
-    for i in range(len(reshape_from)):
-        base_index.append(i + index_accum + 1)
-        if reshape_from[i] != reshape_to[i]:
-            downscale_factor = reshape_from[i] // reshape_to[i]
-            downscale_factor_idx = i + 1 + 1
-            index_accum += 1
-
-            # separate tuples and strings
-    tuples, strings, str_idx = split(data, downscale_factor)
-
-    original_shape = (len(tuples),) + reshape_from
-    original_array = np.array(tuples).reshape(original_shape)
-    new_shape = [len(tuples)] + list(reshape_to)
-    new_shape.insert(downscale_factor_idx, downscale_factor)
-    transpose_order = [0, downscale_factor_idx] + base_index
-    new_array = original_array.reshape(new_shape).transpose(transpose_order)
-    new_len = len(tuples) * downscale_factor
-    downscaled_tuples = list(map(tuple, new_array.reshape(new_len, np.prod(reshape_to))))
-
-    # merge tuples and strings back
-    reshaped = join(downscaled_tuples, strings, str_idx)
-
-    return reshaped
-
-
-def filter_data(data, min_freq):
-    """
-    Select tuple elements that appear more than min_freq times
-
-    Args:
-        tuple_list (list): A list of tuples
-        min_freq (int): The minimum frequency of a pair to be considered.
-
-    Returns:
-        filtered_array (list): A filtered list of tuples.
-    """
-
-    new_tuple_list = [item for item in data if isinstance(item, tuple)]
-    np_tuple_list = np.fromiter(new_tuple_list, dtype=object)
-    unique_elements, counts = np.unique(np_tuple_list, return_counts=True)
-    unique_elements = unique_elements[counts >= min_freq]
-    return unique_elements
+def find_root(tensor, min_freq, vocab):
+    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=1)
+    freq_mask = counts >= min_freq
+    new_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
+    full_mapping = torch.full((counts.size(0),), -1)
+    full_mapping[freq_mask] = new_codes
+    mapped_values = full_mapping[inverse_indices]
+    root_indices = torch.where(mapped_values == -1)[0]
+    code_indices = torch.where(mapped_values != -1)[0]
+    codes = mapped_values[code_indices]
+    return output[:, freq_mask], root_indices, codes.tolist(), code_indices.tolist()
 
 
 def get_freq_pairs(tuple_list):  # TODO: try without for loop
@@ -210,23 +140,32 @@ def get_max_pair(pairs):
     return max_pair, freq
 
 
-def update_vocab(vocab, inv_vocab, pair, idx):
+def update_vocab(vocab, inv_vocab, pairs, indices):
     """
-    Update the vocabulary and inverse vocabulary with a new pair.
-
+    Update the vocabulary and inverse vocabulary with new pair(s).
+    
     Args:
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
         inv_vocab (dict): A dictionary mapping tuples to string codes.
-        pair (tuple): A pair of integers to be added to the vocabulary.
-        idx (str): The value to replace the merged pair in string type.
-
+        pairs (tuple or list): Either a single pair tuple or a list of pair tuples to be added.
+        indices (str or list): Either a single string index or a list of indices corresponding to the pairs.
+                             
     Returns:
-
+        None
     """
 
-    vocab[idx] = pair
-    inv_vocab[pair] = idx
-
+    if isinstance(pairs, tuple):
+        vocab[indices] = pairs
+        inv_vocab[pairs] = indices
+        return
+    
+    pairs, indices = list(pairs), list(indices)
+    if len(pairs) != len(indices):
+        raise ValueError("Number of pairs must match number of indices")
+        
+    for pair, idx in zip(pairs, indices):
+        vocab[idx] = pair
+        inv_vocab[pair] = idx
 
 def merge(tuple_list, vocab, idx):
     """
