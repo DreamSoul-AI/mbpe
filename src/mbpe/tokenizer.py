@@ -7,7 +7,7 @@ from torch import Tensor, dtype
 
 
 @dataclass
-class TrainingState:
+class State:
     """Holds the current state of training process"""
     shape: List[int]
     data: Tensor
@@ -20,11 +20,10 @@ class TrainingState:
 
 class BaseTokenizer:
     """Base class for Tokenizer"""
+
     def __init__(self):
         self.vocab = defaultdict(tuple)
-        self.inverse_vocab = defaultdict(int)
-        self.vocab[''] = 0
-        self.inverse_vocab[0] = ''
+        self.inverse_vocab = defaultdict(str)
 
     def get_vocab(self):
         return self.vocab
@@ -63,7 +62,7 @@ class Tokenizer(BaseTokenizer):
         - None
         """
 
-        state = TrainingState(
+        state = State(
             shape=[],
             data=data,
             data_dtype=data.dtype,
@@ -143,40 +142,42 @@ class Tokenizer(BaseTokenizer):
 
         return plain_list
 
-    def _process_shape(self, state, min_freq, root_min_freq) -> TrainingState:
+    def _process_shape(self, state, min_freq, root_min_freq) -> State:
         """Process data for a single shape configuration"""
         n = len(state.orig_size)
-        dim_index = list(range(n - 3, n))  # last 3 dimensions
-        
+        dim_index = list(range(n - 3, n))  # Last 3 dimensions
+
         # Calculate scale factors
         scale_factor = [
             state.orig_size[dim_index[i]] // state.shape[i]
             for i in range(len(dim_index))
         ]
-        
-        # Handle code splitting if necessary
+
+        # Split data if there are existing codes
         if len(state.code_list) > 0:
-            state = self._handle_existing_codes(state, scale_factor)
-        
+            state = self._split_data(state, scale_factor)
+
         unshuffled_tensor = tensor_unshuffle(state.data, scale_factor, dim_index)
         state.orig_size = list(unshuffled_tensor.size())    # Update state for next iteration
-        
+
         # Handle root vocabulary
         current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
         state = self._update_root_vocabulary(state, unshuffled_tensor, current_root_min_freq)
 
+        # Join the data back for merging
+        state.data = join(state.data, state.code_list, state.code_indices)
         # Merge vocabulary pairs
         state = self._merge_pairs(state, min_freq)
-        
+
         return state
-    
-    def _handle_existing_codes(self, state, scale_factor) -> TrainingState:
+
+    def _split_data(self, state, scale_factor) -> State:
         """Handle processing of existing codes"""
         data, tuple_indices, code_list, code_indices = split(state.data, list(set(scale_factor))[-1])
         orig_size = state.orig_size.copy()
-        orig_size[1] = len(data)    # update the length dimension
-        
-        return TrainingState(
+        orig_size[1] = len(data)  # Update the length dimension
+
+        return State(
             shape=state.shape,
             data=tuple_to_tensor(data, state.shape, orig_size, state.data_dtype),
             data_dtype=state.data_dtype,
@@ -185,35 +186,39 @@ class Tokenizer(BaseTokenizer):
             code_list=code_list,
             code_indices=code_indices
         )
-    
-    def _update_root_vocabulary(self, state, tensor, root_min_freq) -> TrainingState:
+
+    def _update_root_vocabulary(self, state, tensor, root_min_freq) -> State:
         """Update vocabulary with new patterns"""
-        root, root_indices, codes, indices = find_root(tensor, root_min_freq, self.vocab)
-        
-        # update with root vocabulary
-        root_tuples = tensor_to_tuple(root, state.shape)[0]
-        update_vocab(self.vocab, self.inverse_vocab, root_tuples, sorted(set(codes)))
-        
-        # process tuple indices
-        tuple_list = tensor_to_tuple(tensor[:, root_indices], state.shape)[0]   #TODO: why [0]?
-        
-        # update current code indices
-        if len(state.tuple_indices) > 0:
-            indices = torch.tensor(state.tuple_indices)[indices].tolist()
-        new_code_list = state.code_list + codes
-        new_code_indices = state.code_indices + indices
-        
-        return TrainingState(
+        for i in range(len(tensor)):
+            tensor_i = tensor[i]
+            root, root_indices, unique_codes, codes, indices = find_root(tensor_i, root_min_freq, self.vocab)
+
+            # Update with root vocabulary
+            root_tuples = tensor_to_tuple(root.unsqueeze(0), state.shape)[0]
+            update_vocab(self.vocab, self.inverse_vocab, root_tuples, list(map(str, unique_codes)))
+
+            # Process tuple indices
+            tuple_list = tensor_to_tuple(tensor_i[root_indices].unsqueeze(0), state.shape)[0]
+
+            # Update current code indices
+            if len(state.tuple_indices) > 0:
+                indices = torch.tensor(state.tuple_indices)[indices].tolist()
+            new_code_list = state.code_list + list(map(str, codes))
+            new_code_indices = state.code_indices + indices
+
+        return State(
             shape=state.shape,
-            data=join(tuple_list, new_code_list, new_code_indices),
+            data=tuple_list,
             data_dtype=state.data_dtype,
             orig_size=state.orig_size,
             tuple_indices=state.tuple_indices,
             code_list=new_code_list,
             code_indices=new_code_indices
         )
-    
-    def _merge_pairs(self, state, min_freq) -> TrainingState:
+
+    def _merge_pairs(self, state, min_freq) -> State:
+        print(state.data)
+        # TODO: need to consider batch size
         """Merge pairs in the data"""
         while True:
             stats = get_freq_pairs(state.data)
@@ -222,14 +227,14 @@ class Tokenizer(BaseTokenizer):
             if freq < min_freq:
                 break
 
-            # look up the pair in the inverse_vocab
+            # Look up the pair in the inverse_vocab
             code = self.inverse_vocab[pair]
-            if code != 0:
+            if code != '':
                 idx = code
             else:
-                idx = len(self.vocab)
+                idx = str(len(self.vocab))
                 update_vocab(self.vocab, self.inverse_vocab, pair, idx)
 
             state.data = merge(state.data, pair, idx)
-        
+
         return state
