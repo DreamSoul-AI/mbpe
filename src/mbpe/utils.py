@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from collections.abc import Iterable
-from collections import defaultdict
+from collections import defaultdict, Counter
 from itertools import repeat
 from .tensor_shuffle import tensor_unshuffle, tensor_shuffle
 
@@ -106,22 +106,18 @@ def find_root(tensor, min_freq, vocab):
     return output[freq_mask], root_indices.tolist(), unique_codes.tolist(), codes.tolist(), code_indices.tolist()
 
 
-def get_freq_pairs(tuple_list):  # TODO: try without for loop
+def get_freq_pairs(mixed_list):
     """
-    Computes the frequency of all tuple pairs.
+    Computes the frequency of all pairs.
 
     Args:
-        tuple_list (list): A list of tuples
+        mixed_list (list): A list of tuples and strings
 
     Returns:
-        counts (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies
+        counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
     """
 
-    counts = defaultdict(int)
-    for i in range(len(tuple_list) - 1):
-        pair = (tuple_list[i], tuple_list[i + 1])
-        counts[pair] += 1
-    return counts
+    return Counter(zip(mixed_list, mixed_list[1:]))
 
 
 def get_max_pair(pairs):

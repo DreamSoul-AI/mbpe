@@ -217,7 +217,6 @@ class Tokenizer(BaseTokenizer):
         )
 
     def _merge_pairs(self, state, min_freq) -> State:
-        print(state.data)
         # TODO: need to consider batch size
         """Merge pairs in the data"""
         while True:
