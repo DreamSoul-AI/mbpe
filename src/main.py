@@ -27,13 +27,13 @@ if __name__ == "__main__":
     # vocab_len = tokenizer.get_vocab_len()
     # progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
 
-    shape = (1, 2, 2)
+    max_shape = (1, 2, 2)
     dim_index = [1, 2, 3]
     min_freq = 2
     root_min_freq = 2
     for image, label in train_loader:
         # data = mbpe.utils.tensor_to_tuples(data, dim, dim_index)
-        tokenizer.train(image, max_shape=shape, min_freq=min_freq, root_min_freq=root_min_freq)
+        tokenizer.train(image, max_shape=max_shape, dim_index=dim_index, min_freq=min_freq, root_min_freq=root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)
         break
