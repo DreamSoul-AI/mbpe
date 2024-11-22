@@ -1,7 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import List
 from collections import defaultdict
 from .utils import *
+import concurrent.futures
+import threading
+import os
 import torch
 from torch import Tensor, dtype
 
@@ -45,8 +49,36 @@ class BaseTokenizer:
 
 
 class Tokenizer(BaseTokenizer):
-    def __init__(self):
+    def __init__(self, max_workers=None):
         super().__init__()
+        self.max_workers = max_workers
+        self._lock = threading.Lock()
+
+    def _train_single_batch(self, batch_data, max_shape, min_freq, root_min_freq):
+        """Process a single batch of data"""
+        state = State(
+            shape=[],
+            tuples=batch_data,
+            data_dtype=batch_data.dtype,
+            orig_size=list(batch_data.size()),
+            tuple_indices=[],
+            code_list=[],
+            code_indices=[]
+        )
+
+        shapes = find_tuple_shapes(max_shape)
+        joined_list = []
+        for shape in shapes:
+            state.shape = shape
+            state = self._process_root(state, joined_list, root_min_freq)
+            # Join back for merging
+            joined_list = join(state.tuples, state.code_list, state.code_indices)
+
+            # Thread-safe vocabulary updates
+            with self._lock:
+                joined_list = self._merge_pairs(joined_list, min_freq)
+
+        return joined_list
 
     def train(self, data, max_shape, min_freq=2, root_min_freq=2):
         """
@@ -54,35 +86,40 @@ class Tokenizer(BaseTokenizer):
 
         Args:
         - data (array-like): The input data that is shuffled into a list of tuples.
-        - max_shape (list): The maximum shape of the tuples.
+        - max_shape (tuple): The maximum shape of the tuples.
         - min_freq (int): The minimum frequency of a pair to be considered.
         - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
 
         Returns:
         - None
         """
+        if len(data.size()) != 4:
+            raise ValueError(f"Expected 4D input tensor, got shape {data.size()}")
 
-        state = State(
-            shape=[],
-            tuples=data,
-            data_dtype=data.dtype,
-            orig_size=list(data.size()),
-            tuple_indices=[],
-            code_list=[],
-            code_indices=[]
-        )
+        # Create a list of individual batch tensors
+        batch_tensors = [data[i].unsqueeze(0) for i in range(data.size(0))]
 
-        shapes = find_tuple_shapes(max_shape)
+        # Process batches concurrently using ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_batch = {
+                executor.submit(
+                    self._train_single_batch,
+                    batch,
+                    max_shape,
+                    min_freq,
+                    root_min_freq
+                ): i for i, batch in enumerate(batch_tensors)
+            }
 
-        joined_list = []
-        for shape in shapes:
-            state.shape = shape
-            state = self._process_root(state, joined_list, root_min_freq)
-            # Join back for merging
-            joined_list = join(state.tuples, state.code_list, state.code_indices)
-            # Merge vocabulary pairs
-            joined_list = self._merge_pairs(joined_list, min_freq)
-
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_batch):
+                batch_idx = future_to_batch[future]
+                try:
+                    joined_list = future.result()
+                    print(f'Batch {batch_idx} processed successfully.')
+                    print(joined_list)
+                except Exception as e:
+                    print(f'Batch {batch_idx} generated an exception: {e}')
         return
 
     def encode(self, data, max_shape):
@@ -99,7 +136,7 @@ class Tokenizer(BaseTokenizer):
 
         if len(self.vocab) == 0:
             raise ValueError('Vocabulary not trained yet.')
-        
+
         shapes = find_tuple_shapes(max_shape)
 
         joined_list = []
@@ -192,7 +229,8 @@ class Tokenizer(BaseTokenizer):
 
         # Handle root vocabulary
         current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
-        state = self._update_root_vocabulary(state, unshuffled_tensor, current_root_min_freq)
+        with self._lock:
+            state = self._update_root_vocabulary(state, unshuffled_tensor[0], current_root_min_freq)
 
         return state
 
@@ -214,22 +252,20 @@ class Tokenizer(BaseTokenizer):
 
     def _update_root_vocabulary(self, state, tensor, root_min_freq) -> State:
         """Update vocabulary with new patterns"""
-        for i in range(len(tensor)):
-            tensor_i = tensor[i]
-            root, root_indices, unique_codes, codes, indices = find_root(tensor_i, root_min_freq, self.vocab)
+        root, root_indices, unique_codes, codes, indices = find_root(tensor, root_min_freq, self.vocab)
 
-            # Update with root vocabulary
-            root_tuples = tensor_to_tuple(root.unsqueeze(0), state.shape)[0]
-            update_vocab(self.vocab, self.inverse_vocab, root_tuples, list(map(str, unique_codes)))
+        # Update with root vocabulary
+        root_tuples = tensor_to_tuple(root.unsqueeze(0), state.shape)[0]
+        update_vocab(self.vocab, self.inverse_vocab, root_tuples, list(map(str, unique_codes)))
 
-            # Process tuple indices
-            tuple_list = tensor_to_tuple(tensor_i[root_indices].unsqueeze(0), state.shape)[0]
+        # Process tuple indices
+        tuple_list = tensor_to_tuple(tensor[root_indices].unsqueeze(0), state.shape)[0]
 
-            # Update current code indices
-            if len(state.tuple_indices) > 0:
-                indices = torch.tensor(state.tuple_indices)[indices].tolist()
-            new_code_list = state.code_list + list(map(str, codes))
-            new_code_indices = state.code_indices + indices
+        # Update current code indices
+        if len(state.tuple_indices) > 0:
+            indices = torch.tensor(state.tuple_indices)[indices].tolist()
+        new_code_list = state.code_list + list(map(str, codes))
+        new_code_indices = state.code_indices + indices
 
         return State(
             shape=state.shape,
@@ -242,7 +278,6 @@ class Tokenizer(BaseTokenizer):
         )
 
     def _merge_pairs(self, data, min_freq):
-        # TODO: need to consider batch size
         """Merge pairs in the data"""
         while True:
             stats = get_freq_pairs(data)
