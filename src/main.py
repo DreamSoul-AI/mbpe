@@ -33,7 +33,7 @@ if __name__ == "__main__":
     root_min_freq = 2
     for image, label in train_loader:
         # data = mbpe.utils.tensor_to_tuples(data, dim, dim_index)
-        tokenizer.train(image, max_shape=max_shape, dim_index=dim_index, min_freq=min_freq, root_min_freq=root_min_freq)
+        tokenizer.train(image, max_shape=max_shape, min_freq=min_freq, root_min_freq=root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)
         break

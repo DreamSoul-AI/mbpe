@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from collections.abc import Iterable
-from collections import defaultdict, Counter
+from collections import defaultdict
 from itertools import repeat
 from .tensor_shuffle import tensor_unshuffle, tensor_shuffle
 
@@ -83,8 +83,8 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
-def join(tuples, strings, idx):
-    total_length = len(tuples) + len(strings)
+def join(tuples, codes, idx):
+    total_length = len(tuples) + len(codes)
     merged = np.empty(total_length, dtype=object)
     str_mask = np.zeros(total_length, dtype=bool)
     str_mask[idx] = True
@@ -103,7 +103,7 @@ def find_root(tensor, min_freq, vocab):
     root_indices = torch.where(mapped_values == -1)[0]
     code_indices = torch.where(mapped_values != -1)[0]
     codes = mapped_values[code_indices]
-    return output[freq_mask], root_indices.tolist(), codes.tolist(), code_indices.tolist(), unique_codes.tolist()
+    return output[freq_mask], root_indices.tolist(), unique_codes.tolist(), codes.tolist(), code_indices.tolist()
 
 
 def get_freq_pairs(mixed_list):
@@ -117,7 +117,11 @@ def get_freq_pairs(mixed_list):
         counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
     """
 
-    return Counter(zip(mixed_list, mixed_list[1:]))
+    counts = defaultdict(int)
+    for i in range(len(mixed_list) - 1):
+        pair = (mixed_list[i], mixed_list[i + 1])
+        counts[pair] += 1
+    return counts
 
 
 def get_max_pair(pairs):
@@ -156,13 +160,13 @@ def update_vocab(vocab, inv_vocab, pairs, indices):
         inv_vocab[pairs] = indices
         return
 
-    pairs, indices = list(pairs), list(indices)
     if len(pairs) != len(indices):
         raise ValueError("Number of pairs must match number of indices")
 
     for pair, index in zip(pairs, indices):
         vocab[index] = pair
         inv_vocab[pair] = index
+
     return
 
 
