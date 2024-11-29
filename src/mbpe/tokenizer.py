@@ -1,11 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import List
-from collections import defaultdict
 from .utils import *
+from .patch import *
 import concurrent.futures
 import threading
-import os
 import torch
 from torch import Tensor, dtype
 
@@ -26,8 +25,8 @@ class BaseTokenizer:
     """Base class for Tokenizer"""
 
     def __init__(self):
-        self.vocab = defaultdict(tuple)
-        self.inverse_vocab = defaultdict(str)
+        self.vocab = dict()
+        self.inverse_vocab = dict()
 
     def get_vocab(self):
         return self.vocab
@@ -54,7 +53,7 @@ class Tokenizer(BaseTokenizer):
         self.max_workers = max_workers
         self._lock = threading.Lock()
 
-    def _train_single_batch(self, batch_data, max_shape, min_freq, root_min_freq):
+    def _train_single_batch(self, batch_data, max_shape, dim_index, min_freq, root_min_freq):
         """Process a single batch of data"""
         state = State(
             shape=[],
@@ -68,9 +67,13 @@ class Tokenizer(BaseTokenizer):
 
         shapes = find_tuple_shapes(max_shape)
         joined_list = []
+
         for shape in shapes:
             state.shape = shape
-            state = self._process_root(state, joined_list, root_min_freq)
+            patchify = Patchify(shape, dim_index)
+
+            # Process root vocabulary
+            state = self._process_root(state, joined_list, patchify, root_min_freq)
             # Join back for merging
             joined_list = join(state.tuples, state.code_list, state.code_indices)
 
@@ -80,7 +83,7 @@ class Tokenizer(BaseTokenizer):
 
         return joined_list
 
-    def train(self, data, max_shape, min_freq=2, root_min_freq=2):
+    def train(self, data, max_shape, dim_index, min_freq=2, root_min_freq=2):
         """
         Train a vocabulary of using the provided data.
 
@@ -97,7 +100,7 @@ class Tokenizer(BaseTokenizer):
             raise ValueError(f"Expected 4D input tensor, got shape {data.size()}")
 
         # Create a list of individual batch tensors
-        batch_tensors = [data[i].unsqueeze(0) for i in range(data.size(0))]
+        batch_tensors = [data[i].unsqueeze(0).unsqueeze(1) for i in range(data.size(0))]
 
         # Process batches concurrently using ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -106,6 +109,7 @@ class Tokenizer(BaseTokenizer):
                     self._train_single_batch,
                     batch,
                     max_shape,
+                    dim_index,
                     min_freq,
                     root_min_freq
                 ): i for i, batch in enumerate(batch_tensors)
@@ -128,7 +132,7 @@ class Tokenizer(BaseTokenizer):
 
         Args:
         - data (array-like): The input data that is shuffled into a list of tuples.
-        - dim (tuple): The initial dimension for the tuples.
+        - max_shape (tuple): The initial dimension for the tuples.
 
         Returns:
         - tuple_list (list): The encoded list of tuples.
@@ -137,58 +141,33 @@ class Tokenizer(BaseTokenizer):
         if len(self.vocab) == 0:
             raise ValueError('Vocabulary not trained yet.')
 
+        tuple_list = data
         shapes = find_tuple_shapes(max_shape)
 
-        joined_list = []
-        for shape in shapes:
-            n = len(state.orig_size)
-            dim_index = list(range(n - 3, n))  # Last 3 dimensions
+        for i in range(len(shapes)):
+            # the input is already reshaped so we skip reshaping in the first iteration
+            if i > 0:
+                tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
 
-            # Calculate scale factors
-            scale_factor = [
-                state.orig_size[dim_index[i]] // state.shape[i]
-                for i in range(len(dim_index))
-            ]
+            # update with the root vocabulary
+            for i, t in enumerate(tuple_list):
+                if t in self.inverse_vocab.keys():
+                    tuple_list[i] = self.inverse_vocab[t]
 
-            # Split data if there is joined data
-            if len(joined_list) > 0:
-                state = self._split_data(state, joined_list, scale_factor)
+            # merge pairs
+            while True:
+                stats = get_freq_pairs(tuple_list)
+                pair, _ = get_max_pair(stats)
 
-            unshuffled_tensor = tensor_unshuffle(state.tuples, scale_factor, dim_index)
-            # Join back for merging
-            joined_list = join(state.tuples, state.code_list, state.code_indices)
-            # Merge vocabulary pairs
-            joined_list = self._merge_pairs(joined_list)
+                if pair not in self.inverse_vocab.keys():
+                    break
 
-        return joined_list
+                # look up the pair in the inverse_vocab
+                idx = self.inverse_vocab[pair]
 
-        # tuple_list = data
-        # shapes = find_tuple_shapes(dim)
+                tuple_list = merge(tuple_list, pair, idx)
 
-        # for i in range(len(shapes)):
-        #     # the input is already reshaped so we skip reshaping in the first iteration
-        #     if i > 0:
-        #         tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
-
-        #     # update with the root vocabulary
-        #     for i, t in enumerate(tuple_list):
-        #         if t in self.inverse_vocab.keys():
-        #             tuple_list[i] = self.inverse_vocab[t]
-
-        #     # merge pairs
-        #     while True:
-        #         stats = get_freq_pairs(tuple_list)
-        #         pair, _ = get_max_pair(stats)
-
-        #         if pair not in self.inverse_vocab.keys():
-        #             break
-
-        #         # look up the pair in the inverse_vocab
-        #         idx = self.inverse_vocab[pair]
-
-        #         tuple_list = merge(tuple_list, pair, idx)
-
-        # return tuple_list
+        return tuple_list
 
     def decode(self, encoded):
         """
@@ -209,22 +188,17 @@ class Tokenizer(BaseTokenizer):
 
         return plain_list
 
-    def _process_root(self, state, joined_list, root_min_freq) -> State:
+    def _process_root(self, state, joined_list, patchify, root_min_freq) -> State:
         """Process root vocabulary for a single shape configuration"""
-        n = len(state.orig_size)
-        dim_index = list(range(n - 3, n))  # Last 3 dimensions
-
-        # Calculate scale factors
-        scale_factor = [
-            state.orig_size[dim_index[i]] // state.shape[i]
-            for i in range(len(dim_index))
-        ]
-
         # Split data if there is joined data
         if len(joined_list) > 0:
-            state = self._split_data(state, joined_list, scale_factor)
+            state = self._split_data(
+                state,
+                joined_list,
+                patchify.get_scale_factor(state.orig_size)
+            )
 
-        unshuffled_tensor = tensor_unshuffle(state.tuples, scale_factor, dim_index)
+        unshuffled_tensor = patchify.forward(state.tuples)
         state.orig_size = list(unshuffled_tensor.size())    # Update state for next iteration
 
         # Handle root vocabulary
@@ -236,7 +210,7 @@ class Tokenizer(BaseTokenizer):
 
     def _split_data(self, state, joined_list, scale_factor) -> State:
         """Split data into tuple and code lists"""
-        tuple_list, tuple_indices, code_list, code_indices = split(joined_list, list(set(scale_factor))[-1])
+        tuple_list, tuple_indices, code_list, code_indices = split(joined_list, scale_factor)
         orig_size = state.orig_size.copy()
         orig_size[1] = len(tuple_list)  # Update the length dimension
 
@@ -287,12 +261,12 @@ class Tokenizer(BaseTokenizer):
                 break
 
             # Look up the pair in the inverse_vocab
-            code = self.inverse_vocab[pair]
-            if code != '':
-                idx = code
-            else:
+            code = self.inverse_vocab.get(pair, None)
+            if code is None:
                 idx = str(len(self.vocab))
                 update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+            else:
+                idx = code
 
             data = merge(data, pair, idx)
 

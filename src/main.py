@@ -24,10 +24,11 @@ if __name__ == "__main__":
     # progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
 
     max_shape = (1, 2, 2)
+    dim_index = [2, 3, 4]
     min_freq = 2
     root_min_freq = 2
     for image, label in train_loader:
-        tokenizer.train(image, max_shape=max_shape, min_freq=min_freq, root_min_freq=root_min_freq)
+        tokenizer.train(image, max_shape, dim_index, min_freq, root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)
         break
