@@ -93,19 +93,6 @@ def join(tuples, codes, idx):
     return list(merged)
 
 
-def find_root(tensor, min_freq, vocab):
-    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
-    freq_mask = counts >= min_freq
-    unique_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
-    full_mapping = torch.full((counts.size(0),), -1)
-    full_mapping[freq_mask] = unique_codes
-    mapped_values = full_mapping[inverse_indices]
-    root_indices = torch.where(mapped_values == -1)[0]
-    code_indices = torch.where(mapped_values != -1)[0]
-    codes = mapped_values[code_indices]
-    return output[freq_mask], root_indices.tolist(), unique_codes.tolist(), codes.tolist(), code_indices.tolist()
-
-
 def get_freq_pairs(mixed_list):
     """
     Computes the frequency of all pairs.
