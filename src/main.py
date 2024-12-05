@@ -5,7 +5,7 @@ from tqdm import tqdm
 import mbpe
 
 torch.manual_seed(1)
-batch_size = 4
+batch_size = 1
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -20,14 +20,14 @@ if __name__ == "__main__":
     tokenizer = mbpe.tokenizer.Tokenizer(max_workers=batch_size)
     output_ids = []
 
-    vocab_len = tokenizer.get_vocab_len()
-    progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
+    vocab_len = len(tokenizer)
+    # progress = tqdm(train_loader, desc=f"vocab size [{vocab_len}]")
 
     max_shape = (1, 2, 2)
     dim_index = [2, 3, 4]
     min_freq = 2
     root_min_freq = 2
-    for image, label in progress:
+    for image, label in train_loader:
         tokenizer.train(image, max_shape, dim_index, min_freq, root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)

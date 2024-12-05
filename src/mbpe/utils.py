@@ -83,13 +83,11 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
-def join(tuples, codes, idx):
+def join(tuples, tuple_indices, codes, code_indices):
     total_length = len(tuples) + len(codes)
     merged = np.empty(total_length, dtype=object)
-    str_mask = np.zeros(total_length, dtype=bool)
-    str_mask[idx] = True
-    merged[str_mask] = codes
-    merged[~str_mask] = np.fromiter(tuples, dtype=object)
+    merged[tuple_indices] = np.fromiter(tuples, dtype=object)
+    merged[code_indices] = codes
     return list(merged)
 
 
@@ -192,7 +190,7 @@ def dfs(tup, vocab):
     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
 
     Args:
-        tup (tuple): A tuple representing a pair of tuples or string codes to be decoded.
+        tup (str): A tuple or a tuple of a pair of tuples.
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
 
     Returns:

@@ -28,17 +28,17 @@ class BaseTokenizer:
         self.vocab = dict()
         self.inverse_vocab = dict()
 
+    def __len__(self):
+        return len(self.vocab)
+
     def get_vocab(self):
         return self.vocab
 
-    def get_vocab_len(self):
-        return len(self.vocab)
-
-    def train(self, data, dim, min_freq):
+    def train(self, data, max_shape, dim_index, min_freq, root_min_freq):
         # Tokenizer can train a vocabulary of size vocab_size from given data
         raise NotImplementedError
 
-    def encode(self, data, dim):
+    def encode(self, data, max_shape):
         # Tokenizer can encode a list of tuples based on the trained vocabulary
         raise NotImplementedError
 
@@ -77,7 +77,7 @@ class Tokenizer(BaseTokenizer):
             if state is None:
                 break
             # Join back for merging
-            joined_list = join(state.tuples, state.code_list, state.code_indices)
+            joined_list = join(state.tuples, state.tuple_indices, state.code_list, state.code_indices)
 
             # Thread-safe vocabulary updates
             with self._lock:
@@ -90,13 +90,13 @@ class Tokenizer(BaseTokenizer):
         Train a vocabulary of using the provided data.
 
         Args:
-        - data (array-like): The input data that is shuffled into a list of tuples.
-        - max_shape (tuple): The maximum shape of the tuples.
-        - min_freq (int): The minimum frequency of a pair to be considered.
-        - root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
+            data (array-like): The input data that is shuffled into a list of tuples.
+            max_shape (tuple): The maximum shape of the tuples.
+            min_freq (int): The minimum frequency of a pair to be considered.
+            root_min_freq (int): The minimum frequency of a pair to be considered for the root vocabulary.
 
         Returns:
-        - None
+            None
         """
         if len(data.size()) != 4:
             raise ValueError(f"Expected 4D input tensor, got shape {data.size()}")
@@ -120,14 +120,14 @@ class Tokenizer(BaseTokenizer):
             # Collect results as they complete
             for future in concurrent.futures.as_completed(future_to_batch):
                 batch_idx = future_to_batch[future]
-                # joined_list = future.result()
+                joined_list = future.result()
                 # print(joined_list)
-                try:
-                    joined_list = future.result()
-                    # print(f'Batch {batch_idx} processed successfully.')
-                    # print(joined_list)
-                except Exception as e:
-                    print(f'Batch {batch_idx} generated an exception: {e}')
+                # try:
+                #     joined_list = future.result()
+                #     print(f'Batch {batch_idx} processed successfully.')
+                #     print(joined_list)
+                # except Exception as e:
+                #     print(f'Batch {batch_idx} generated an exception: {e}')
         return
 
     def encode(self, data, max_shape):
@@ -135,11 +135,11 @@ class Tokenizer(BaseTokenizer):
         Encode using the trained vocabulary.
 
         Args:
-        - data (array-like): The input data that is shuffled into a list of tuples.
-        - max_shape (tuple): The initial dimension for the tuples.
+            data (array-like): The input data that is shuffled into a list of tuples.
+            max_shape (tuple): The initial dimension for the tuples.
 
         Returns:
-        - tuple_list (list): The encoded list of tuples.
+            tuple_list (list): The encoded list of tuples.
         """
 
         if len(self.vocab) == 0:
@@ -178,19 +178,18 @@ class Tokenizer(BaseTokenizer):
         Decode the encoded data back into its original list of tuples.
 
         Args:
-        - encoded (list): encoded data containing tuples and string codes.
+            encoded (list): encoded data containing string codes.
 
         Returns:
-        - plain_list (list): The decoded list of tuples.
+            plain_list (list): The decoded list of tuples.
         """
 
         decoded = []
         for i in encoded:
             pair = self.vocab[i]
             decoded.append(dfs(pair, self.vocab))
-        plain_list = [item for tup in decoded for item in tup]
 
-        return plain_list
+        return np.concatenate(decoded).tolist()
 
     def _process_root_vocabulary(self, state, joined_list, patchify, root_min_freq) -> State:
         """Process root vocabulary for a single shape configuration"""
@@ -233,23 +232,24 @@ class Tokenizer(BaseTokenizer):
 
     def _update_root_state(self, state, tensor, root_min_freq) -> State:
         """Process the root vocabulary for the current state"""
-        root_indices, codes, indices = self._process_state(state, tensor, root_min_freq)
+        non_root_indices, codes, root_indices = self._process_state(state, tensor, root_min_freq)
 
         # Process tuple indices
-        tuple_list = tensor_to_tuple(tensor[root_indices].unsqueeze(0), state.shape)[0]
+        tuple_list = tensor_to_tuple(tensor[non_root_indices].unsqueeze(0), state.shape)[0]
 
         # Update current code indices
         if len(state.tuple_indices) > 0:
-            indices = torch.tensor(state.tuple_indices)[indices].tolist()
+            root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
+            non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
         new_code_list = state.code_list + list(map(str, codes))
-        new_code_indices = state.code_indices + indices
+        new_code_indices = state.code_indices + root_indices
 
         return State(
             shape=state.shape,
             tuples=tuple_list,
             data_dtype=state.data_dtype,
             orig_size=state.orig_size,
-            tuple_indices=state.tuple_indices,
+            tuple_indices=non_root_indices,
             code_list=new_code_list,
             code_indices=new_code_indices
         )
@@ -269,12 +269,12 @@ class Tokenizer(BaseTokenizer):
         mapped_values = full_mapping[inverse_indices]
 
         # Split indices
-        root_indices = torch.nonzero(mapped_values == -1).squeeze()
+        non_root_indices = torch.nonzero(mapped_values == -1).squeeze()
         code_indices = torch.nonzero(mapped_values != -1).squeeze()
         codes = mapped_values[code_indices]
 
         return (
-            root_indices.tolist(),
+            non_root_indices.tolist(),
             codes.tolist(),
             code_indices.tolist(),
         )
