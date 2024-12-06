@@ -31,7 +31,8 @@ if __name__ == "__main__":
         tokenizer.train(image, max_shape, dim_index, min_freq, root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)
+        # current_vocab_size = len(tokenizer)
+        # progress.set_description(f"Vocab Size: {current_vocab_size}")
         break
-    # vocab_len = tokenizer.get_vocab_len()
     print('vocabulary:', tokenizer.get_vocab())
     # print('output_ids:', output_ids)
