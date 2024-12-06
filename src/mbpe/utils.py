@@ -134,19 +134,6 @@ def get_max_pair(pairs):
 
 
 def update_vocab(vocab, inv_vocab, pairs, indices):
-    """
-    Update the vocabulary and inverse vocabulary with new pair(s).
-
-    Args:
-        vocab (dict): A dictionary mapping string codes to tuples representing pairs.
-        inv_vocab (dict): A dictionary mapping tuples to string codes.
-        pairs (tuple or list): Either a single pair tuple or a list of pair tuples to be added.
-        indices (str or list): Either a single string index or a list of indices corresponding to the pairs.
-
-    Returns:
-        None
-    """
-
     if isinstance(pairs, tuple):
         vocab[indices] = pairs
         inv_vocab[pairs] = indices
@@ -158,7 +145,6 @@ def update_vocab(vocab, inv_vocab, pairs, indices):
     for pair, index in zip(pairs, indices):
         vocab[index] = pair
         inv_vocab[pair] = index
-
     return
 
 

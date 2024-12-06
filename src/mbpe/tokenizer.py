@@ -67,68 +67,203 @@ class Tokenizer(BaseTokenizer):
         Returns:
             None
         """
-        if len(data.size()) != 4:
-            raise ValueError(f"Expected 4D input tensor, got shape {data.size()}")
+        # if len(data.size()) != 4:
+        #     raise ValueError(f"Expected 4D input tensor, got shape {data.size()}")
 
         shapes = find_tuple_shapes(max_shape)
-
         # Create a list of individual batch tensors
-        batches = [data[i].unsqueeze(0).unsqueeze(1) for i in range(data.size(0))]
+        # batches = [data[i].unsqueeze(1) for i in range(data.size(0))]
 
-        states = [
-            State(
+        states = []
+        for i in range(len(data)):
+            data_i = data[[i]]
+            state_i = State(
                 shape=[],
-                tuples=batch,
-                data_dtype=batch.dtype,
-                orig_size=list(batch.size()),
+                tuples=data_i,
+                # TODO: this is not tuple, the name should be changed, or the data should be converted to tuple
+                data_dtype=data_i.dtype,
+                orig_size=list(data_i.size()),
                 tuple_indices=[],
                 code_list=[],
                 code_indices=[],
                 joined_list=[]
-            ) for batch in batches
-        ]
+            )
+            states.append(state_i)
 
         for shape in shapes:
             # Process current shape for all batches concurrently
-            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                futures = [
-                    executor.submit(
-                        self._train_single_batch,
-                        state,
+            if self.max_workers is not None and self.max_workers > 0:
+                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    futures = [
+                        executor.submit(
+                            self._train_single,
+                            state,
+                            shape,
+                            dim_index,
+                            min_freq,
+                            root_min_freq
+                        ) for state in states
+                    ]
+
+                    # Update batch states with results
+                    for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                        updated_state = future.result()
+                        if updated_state is not None:
+                            states[i] = updated_state
+            else:
+                for i in range(len(states)):
+                    states[i] = self._train_single(
+                        states[i],
                         shape,
                         dim_index,
                         min_freq,
                         root_min_freq
-                    ) for state in states
-                ]
-
-            # Update batch states with results
-                for i, future in enumerate(concurrent.futures.as_completed(futures)):
-                    updated_state = future.result()
-                    if updated_state is not None:
-                        states[i] = updated_state
+                    )
 
         # for state in states:
         #     print(state.joined_list)
 
         return
 
-    def _train_single_batch(self, state, shape, dim_index, min_freq, root_min_freq):
+    def _train_single(self, state, shape, dim_index, min_freq, root_min_freq):
         """Process a single batch of data"""
         state.shape = shape
         patchify = Patchify(shape, dim_index)
 
         # Process root vocabulary
         state = self._process_root_vocabulary(state, patchify, root_min_freq)
-        if state is None:
-            return None
 
-        # Join back for merging
-        joined_list = join(state.tuples, state.tuple_indices, state.code_list, state.code_indices)
-
-        state.joined_list = self._merge_pairs(joined_list, min_freq)
-
+        if state is not None:
+            # Join back for merging
+            joined_list = join(state.tuples, state.tuple_indices, state.code_list, state.code_indices)
+            state.joined_list = self._merge_pairs(joined_list, min_freq)
         return state
+
+    def _process_root_vocabulary(self, state, patchify, root_min_freq):
+        """Process root vocabulary for a single shape configuration"""
+        # Split data if there is joined data
+        scale_factor = patchify.get_scale_factor(state.orig_size)
+
+        if len(state.joined_list) > 0:
+            state = self._split_data(state, scale_factor) # TODO: this is still awkward
+
+        if state is not None:
+            unshuffled_tensor = patchify(state.tuples)
+            state.orig_size = list(unshuffled_tensor.size())  # Update state for next iteration
+            # Handle root vocabulary
+            current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
+            state = self._update_root_state(state, unshuffled_tensor[0], current_root_min_freq)
+        return state
+
+    def _split_data(self, state, scale_factor):
+        """Split data into tuple and code lists"""
+        tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor) # TODO: for loop here
+
+        if len(tuple_list) > 0:
+            orig_size = state.orig_size.copy()
+            orig_size[1] = len(tuple_list)  # Update the length dimension
+
+            state = State(
+                shape=state.shape,
+                tuples=tuple_to_tensor(tuple_list, state.shape, orig_size, state.data_dtype), # TODO: maybe we change the name to data, or also store the tuple list
+                data_dtype=state.data_dtype,
+                orig_size=orig_size,
+                tuple_indices=tuple_indices,
+                code_list=code_list,
+                code_indices=code_indices,
+                joined_list=state.joined_list
+            )
+        else:
+            state = None
+        return state
+
+    def _update_root_state(self, state, tensor, root_min_freq):
+        """Process the root vocabulary for the current state"""
+        non_root_indices, codes, root_indices = self._process_state(state, tensor, root_min_freq)
+
+        # Process tuple indices
+        tuple_list = tensor_to_tuple(tensor[non_root_indices].unsqueeze(0), state.shape)[0]
+
+        # Update current code indices
+        if len(state.tuple_indices) > 0:  # TODO: purpose?
+            root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
+            non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
+        new_code_list = state.code_list + list(map(str, codes))
+
+        new_code_indices = state.code_indices + root_indices
+
+        state = State(
+            shape=state.shape,
+            tuples=tuple_list,
+            data_dtype=state.data_dtype,
+            orig_size=state.orig_size,
+            tuple_indices=non_root_indices,
+            code_list=new_code_list,
+            code_indices=new_code_indices,
+            joined_list=state.joined_list
+        )
+        return state
+
+    def _process_state(self, state, tensor, min_freq):  # TODO: name too vague
+        """Process the intermediate state given the tensor"""
+        output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
+        freq_mask = counts >= min_freq
+        root_tuples = tensor_to_tuple(output[freq_mask].unsqueeze(0), state.shape)[0]
+
+        with self._lock:
+            unique_codes = self._assign_codes(root_tuples)
+
+        # Create full mapping
+        full_mapping = torch.full((counts.size(0),), -1, dtype=torch.long)
+        full_mapping[freq_mask] = torch.tensor(unique_codes, dtype=torch.long)
+        mapped_values = full_mapping[inverse_indices]
+
+        # Split indices
+        non_root_indices = torch.nonzero(mapped_values == -1).squeeze()
+        code_indices = torch.nonzero(mapped_values != -1).squeeze()
+        codes = mapped_values[code_indices]
+
+        non_root_indices = np.atleast_1d(non_root_indices).tolist()
+        codes = codes.tolist()
+        code_indices = code_indices.tolist()
+        return non_root_indices, codes, code_indices
+
+    def _assign_codes(self, tuples):
+        """Assign codes to the root tuples and update the vocabulary"""
+        # Assign existing codes
+        unique_codes = np.array([int(self.inverse_vocab.get(tup, -1)) for tup in tuples])
+
+        # Identify new codes
+        new_codes_mask = unique_codes == -1
+        new_tuples = np.fromiter(tuples, dtype=object)[new_codes_mask]
+        new_indices = np.arange(len(self.vocab), len(self.vocab) + len(new_tuples))
+
+        # Assign new codes
+        unique_codes[new_codes_mask] = new_indices
+        unique_codes_str = list(map(str, new_indices))
+        update_vocab(self.vocab, self.inverse_vocab, new_tuples, unique_codes_str)
+        return unique_codes
+
+    def _merge_pairs(self, data, min_freq):
+        """Merge pairs in the data"""
+        while True:
+            stats = get_freq_pairs(data)
+            pair, freq = get_max_pair(stats)
+
+            if freq < min_freq:
+                break
+
+            with self._lock:
+                # Look up the pair in the inverse_vocab
+                code = self.inverse_vocab.get(pair, None)  # TODO: any getter from vocab should has lock
+                if code is None:
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+                else:
+                    idx = code
+
+            data = merge(data, pair, idx)
+        return data
 
     def encode(self, data, max_shape):
         """
@@ -151,7 +286,7 @@ class Tokenizer(BaseTokenizer):
         for i in range(len(shapes)):
             # the input is already reshaped so we skip reshaping in the first iteration
             if i > 0:
-                tuple_list = tuple_reshape(tuple_list, shapes[i-1], shapes[i])
+                tuple_list = tuple_reshape(tuple_list, shapes[i - 1], shapes[i])
 
             # update with the root vocabulary
             for i, t in enumerate(tuple_list):
@@ -190,140 +325,3 @@ class Tokenizer(BaseTokenizer):
             decoded.append(dfs(pair, self.vocab))
 
         return np.concatenate(decoded).tolist()
-
-    def _process_root_vocabulary(self, state, patchify, root_min_freq) -> State:
-        """Process root vocabulary for a single shape configuration"""
-        # Split data if there is joined data
-        if len(state.joined_list) > 0:
-            state = self._split_data(
-                state,
-                patchify.get_scale_factor(state.orig_size)
-            )
-        if state is None:
-            return None
-
-        unshuffled_tensor = patchify.forward(state.tuples)
-        state.orig_size = list(unshuffled_tensor.size())    # Update state for next iteration
-
-        # Handle root vocabulary
-        current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
-        state = self._update_root_state(state, unshuffled_tensor[0], current_root_min_freq)
-
-        return state
-
-    def _split_data(self, state, scale_factor) -> State:
-        """Split data into tuple and code lists"""
-        tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
-        if len(tuple_list) == 0:
-            return None
-        orig_size = state.orig_size.copy()
-        orig_size[1] = len(tuple_list)  # Update the length dimension
-
-        return State(
-            shape=state.shape,
-            tuples=tuple_to_tensor(tuple_list, state.shape, orig_size, state.data_dtype),
-            data_dtype=state.data_dtype,
-            orig_size=orig_size,
-            tuple_indices=tuple_indices,
-            code_list=code_list,
-            code_indices=code_indices,
-            joined_list=state.joined_list
-        )
-
-    def _update_root_state(self, state, tensor, root_min_freq) -> State:
-        """Process the root vocabulary for the current state"""
-        non_root_indices, codes, root_indices = self._process_state(state, tensor, root_min_freq)
-
-        # Process tuple indices
-        tuple_list = tensor_to_tuple(tensor[non_root_indices].unsqueeze(0), state.shape)[0]
-
-        # Update current code indices
-        if len(state.tuple_indices) > 0:
-            root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
-            non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
-        new_code_list = state.code_list + list(map(str, codes))
-        new_code_indices = state.code_indices + root_indices
-
-        return State(
-            shape=state.shape,
-            tuples=tuple_list,
-            data_dtype=state.data_dtype,
-            orig_size=state.orig_size,
-            tuple_indices=non_root_indices,
-            code_list=new_code_list,
-            code_indices=new_code_indices,
-            joined_list=state.joined_list
-        )
-
-    def _process_state(self, state, tensor, min_freq):
-        """Process the intermediate state given the tensor"""
-        output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
-        freq_mask = counts >= min_freq
-        root_tuples = tensor_to_tuple(output[freq_mask].unsqueeze(0), state.shape)[0]
-
-        with self._lock:
-            unique_codes = self._assign_codes(root_tuples)
-
-        # Create full mapping
-        full_mapping = torch.full((counts.size(0),), -1, dtype=torch.long)
-        full_mapping[freq_mask] = torch.tensor(unique_codes, dtype=torch.long)
-        mapped_values = full_mapping[inverse_indices]
-
-        # Split indices
-        non_root_indices = torch.nonzero(mapped_values == -1).squeeze()
-        code_indices = torch.nonzero(mapped_values != -1).squeeze()
-        codes = mapped_values[code_indices]
-
-        return (
-            np.atleast_1d(non_root_indices).tolist(),
-            codes.tolist(),
-            code_indices.tolist(),
-        )
-
-    def _assign_codes(self, tuples):
-        """Assign codes to the root tuples and update the vocabulary"""
-        # unique_codes = []
-        # for tup in tuples:
-        #     if tup not in self.inverse_vocab:
-        #         new_index = str(len(self.vocab))
-        #         update_vocab(self.vocab, self.inverse_vocab, tup, new_index)
-        #         unique_codes.append(int(new_index))
-        #     else:
-        #         unique_codes.append(int(self.inverse_vocab[tup]))
-        # return unique_codes
-
-        # Assign existing codes
-        unique_codes = np.array([int(self.inverse_vocab.get(tup, -1)) for tup in tuples])
-
-        # Identify new codes
-        new_codes_mask = unique_codes == -1
-        new_tuples = np.fromiter(tuples, dtype=object)[new_codes_mask]
-        new_indices = np.arange(len(self.vocab), len(self.vocab) + len(new_tuples))
-
-        # Assign new codes
-        unique_codes[new_codes_mask] = new_indices
-        update_vocab(self.vocab, self.inverse_vocab, new_tuples, list(map(str, new_indices)))
-
-        return unique_codes
-
-    def _merge_pairs(self, data, min_freq):
-        """Merge pairs in the data"""
-        while True:
-            stats = get_freq_pairs(data)
-            pair, freq = get_max_pair(stats)
-
-            if freq < min_freq:
-                break
-
-            with self._lock:
-                # Look up the pair in the inverse_vocab
-                code = self.inverse_vocab.get(pair, None)
-                if code is None:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-                else:
-                    idx = code
-
-            data = merge(data, pair, idx)
-
-        return data

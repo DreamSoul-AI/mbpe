@@ -6,6 +6,7 @@ import mbpe
 
 torch.manual_seed(1)
 batch_size = 1
+max_workers = None
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -17,7 +18,7 @@ train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=T
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
 
 if __name__ == "__main__":
-    tokenizer = mbpe.tokenizer.Tokenizer(max_workers=batch_size)
+    tokenizer = mbpe.tokenizer.Tokenizer(max_workers=max_workers)
     output_ids = []
 
     vocab_len = len(tokenizer)
@@ -27,7 +28,8 @@ if __name__ == "__main__":
     dim_index = [2, 3, 4]
     min_freq = 2
     root_min_freq = 2
-    for image, label in train_loader:
+    for image, label in train_loader: # TODO: move train loader inside
+        image = image.unsqueeze(1) # create sequence dimension
         tokenizer.train(image, max_shape, dim_index, min_freq, root_min_freq)
         # tokenized = tokenizer.encode(data, dim=dim)
         # output_ids.append(tokenized)
