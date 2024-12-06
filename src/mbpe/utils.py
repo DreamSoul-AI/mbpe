@@ -33,7 +33,7 @@ def find_tuple_shapes(dim):
 
     Args:
         dim (tuple): A tuple of dimensions.
-    
+
     Returns:
         shapes: A list of tuples representing all possible shapes.
     """
@@ -83,43 +83,35 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
-def join(tuples, strings, idx):
-    total_length = len(tuples) + len(strings)
+def join(tuples, tuple_indices, codes, code_indices):
+    total_length = len(tuples) + len(codes)
     merged = np.empty(total_length, dtype=object)
-    str_mask = np.zeros(total_length, dtype=bool)
-    str_mask[idx] = True
-    merged[str_mask] = strings
-    merged[~str_mask] = np.fromiter(tuples, dtype=object)
+    merged[tuple_indices] = np.fromiter(tuples, dtype=object)
+    merged[code_indices] = codes
     return list(merged)
 
 
-def find_root(tensor, min_freq, vocab):
-    output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
-    freq_mask = counts >= min_freq
-    unique_codes = torch.arange(len(vocab), len(vocab) + torch.sum(freq_mask))
-    full_mapping = torch.full((counts.size(0),), -1)
-    full_mapping[freq_mask] = unique_codes
-    mapped_values = full_mapping[inverse_indices]
-    root_indices = torch.where(mapped_values == -1)[0]
-    code_indices = torch.where(mapped_values != -1)[0]
-    codes = mapped_values[code_indices]
-    return output[freq_mask], root_indices.tolist(), codes.tolist(), code_indices.tolist(), unique_codes.tolist()
-
-
-def get_freq_pairs(tuple_list):  # TODO: try without for loop
+def get_freq_pairs(mixed_list):
     """
-    Computes the frequency of all tuple pairs.
+    Computes the frequency of all pairs.
 
     Args:
-        tuple_list (list): A list of tuples
+        mixed_list (list): A list of tuples and strings
 
     Returns:
-        counts (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies
+        counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
     """
 
+    # np_mixed_list = np.fromiter(mixed_list, dtype=object)
+    # np_pairs = np.lib.stride_tricks.sliding_window_view(np_mixed_list, window_shape=2)
+    # np_pairs_as_tuples = np.fromiter([tuple(pair) for pair in np_pairs], dtype=object)
+    # # np_pairs_as_tuples = np.array([tuple(pair) for pair in np_pairs], dtype=object)
+    # unique_pairs, counts = np.unique(np_pairs_as_tuples, return_counts=True)
+    # exit()
+
     counts = defaultdict(int)
-    for i in range(len(tuple_list) - 1):
-        pair = (tuple_list[i], tuple_list[i + 1])
+    for i in range(len(mixed_list) - 1):
+        pair = (mixed_list[i], mixed_list[i + 1])
         counts[pair] += 1
     return counts
 
@@ -144,13 +136,13 @@ def get_max_pair(pairs):
 def update_vocab(vocab, inv_vocab, pairs, indices):
     """
     Update the vocabulary and inverse vocabulary with new pair(s).
-    
+
     Args:
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
         inv_vocab (dict): A dictionary mapping tuples to string codes.
         pairs (tuple or list): Either a single pair tuple or a list of pair tuples to be added.
         indices (str or list): Either a single string index or a list of indices corresponding to the pairs.
-                             
+
     Returns:
         None
     """
@@ -160,13 +152,13 @@ def update_vocab(vocab, inv_vocab, pairs, indices):
         inv_vocab[pairs] = indices
         return
 
-    pairs, indices = list(pairs), list(indices)
     if len(pairs) != len(indices):
         raise ValueError("Number of pairs must match number of indices")
 
     for pair, index in zip(pairs, indices):
         vocab[index] = pair
         inv_vocab[pair] = index
+
     return
 
 
@@ -198,7 +190,7 @@ def dfs(tup, vocab):
     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
 
     Args:
-        tup (tuple): A tuple representing a pair of tuples or string codes to be decoded.
+        tup (str): A tuple or a tuple of a pair of tuples.
         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
 
     Returns:

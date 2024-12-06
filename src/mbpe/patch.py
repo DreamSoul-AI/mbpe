@@ -13,6 +13,18 @@ class Patchify(nn.Module):
         self.patch_size = patch_size
         self.dim_index = dim_index
 
+    def get_scale_factor(self, orig_size):
+        """
+        Computes the scale factor for downscaling based on the patch size.
+        :param orig_size: Original size of the tensor.
+        :return: Scale factor.
+        """
+        for i, dim in enumerate(self.dim_index):
+            factor = orig_size[dim] // self.patch_size[i]
+            if factor != 1:
+                return factor
+        return 1
+
     def forward(self, x):
         """
         Patchify the input tensor.
@@ -24,7 +36,7 @@ class Patchify(nn.Module):
         downscale_factor = [
             x.shape[self.dim_index[i]] // self.patch_size[i] for i in range(len(self.dim_index))
         ]
-        print(downscale_factor)
+        # print(downscale_factor)
         return self._tensor_unshuffle(x, downscale_factor, self.dim_index)
 
     @staticmethod
@@ -41,11 +53,11 @@ class Patchify(nn.Module):
             downscale_factor_index.append(dim_index_i + 1)
             index_accum += 1
         reshaped_tensor = tensor.view(tensor_size)
-        permute_order = [0] + downscale_factor_index + base_index
+        permute_order = [0, 1] + downscale_factor_index + base_index
         permuted_tensor = reshaped_tensor.permute(permute_order)
         downscale_size = [tensor_size[i] for i in downscale_factor_index]
         base_size = [tensor_size[i] for i in base_index]
-        merged_size = math.prod(downscale_size)
+        merged_size = math.prod(downscale_size) * tensor_size[1]
         unshuffled_size = [tensor_size[0]] + [merged_size] + base_size
         unshuffled_tensor = permuted_tensor.reshape(unshuffled_size)
         return unshuffled_tensor
