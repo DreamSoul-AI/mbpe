@@ -102,13 +102,6 @@ def get_freq_pairs(mixed_list):
         counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
     """
 
-    # np_mixed_list = np.fromiter(mixed_list, dtype=object)
-    # np_pairs = np.lib.stride_tricks.sliding_window_view(np_mixed_list, window_shape=2)
-    # np_pairs_as_tuples = np.fromiter([tuple(pair) for pair in np_pairs], dtype=object)
-    # # np_pairs_as_tuples = np.array([tuple(pair) for pair in np_pairs], dtype=object)
-    # unique_pairs, counts = np.unique(np_pairs_as_tuples, return_counts=True)
-    # exit()
-
     counts = defaultdict(int)
     for i in range(len(mixed_list) - 1):
         pair = (mixed_list[i], mixed_list[i + 1])
