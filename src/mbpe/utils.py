@@ -88,7 +88,8 @@ def join(tuples, tuple_indices, codes, code_indices):
     merged = np.empty(total_length, dtype=object)
     merged[tuple_indices] = np.fromiter(tuples, dtype=object)
     merged[code_indices] = codes
-    return list(merged)
+    joined_list = list(merged)
+    return joined_list
 
 
 def get_freq_pairs(mixed_list):
