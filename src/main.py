@@ -9,7 +9,7 @@ max_workers = 1
 
 transform = transforms.Compose([
     transforms.ToTensor(),
-    lambda x: (x * 255).to(dtype=torch.uint8)
+    lambda x: (x * 255).to(dtype=torch.uint8).unsqueeze(0)
 ])
 
 train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)

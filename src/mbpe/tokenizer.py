@@ -75,56 +75,63 @@ class Tokenizer(BaseTokenizer):
         # Initialize a dictionary to store states for all images
         states = {}
 
-        # create initial states for all images
-        for batch_idx, (data, _) in enumerate(data_loader): # TODO: need to check data loader shuffle
-            data = data.unsqueeze(
-                1)  # create sequence dimension # TODO: add to transform, assuming sequence length here
-            for i in range(len(data)):
-                data_i = data[[i]]
-                state_key = f"batch_{batch_idx}_{i}"  ## TODO: this needs discussion, should be set in thread
-                states[state_key] = State(
-                    shape=[],
-                    tensor=data_i,
-                    data_dtype=data_i.dtype,
-                    orig_size=list(data_i.size()),
-                    tuple_indices=[],
-                    code_list=[],
-                    code_indices=[],
-                    joined_list=[]
-                )
-
-        # TODO: should each batch set a thread
         # Process each shape for all images
         for shape in shapes:
-            if self.max_workers is not None and self.max_workers > 0:
-                with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                    futures = [
-                        executor.submit(
-                            self._train_single,
-                            state,
+            for batch_idx, (image, _) in enumerate(data_loader):
+                batch_state_key = f"batch_{batch_idx}"
+
+                # Initialize or retrieve states for this batch
+                if batch_state_key not in states.keys():
+                    batch_states = []
+                    for i in range(len(image)):
+                        image_i = image[[i]]
+                        state_i = State(
+                            shape=[],
+                            tensor=image_i,
+                            data_dtype=image_i.dtype,
+                            orig_size=list(image_i.size()),
+                            tuple_indices=[],
+                            code_list=[],
+                            code_indices=[],
+                            joined_list=[]
+                        )
+                        batch_states.append(state_i)
+                else:
+                    batch_states = states[batch_state_key]
+                
+                # Process the batch using threading
+                if self.max_workers is not None and self.max_workers > 0:
+                    with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                        futures = [
+                            executor.submit(
+                                self._train_single,
+                                state,
+                                shape,
+                                dim_index,
+                                min_freq,
+                                root_min_freq
+                            ) for state in batch_states
+                        ]
+
+                        # Update batch states with results
+                        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+                            updated_state = future.result()
+                            if updated_state is not None:
+                                batch_states[i] = updated_state
+                else:
+                    for i in range(len(batch_states)):
+                        updated_state = self._train_single(
+                            batch_states[i],
                             shape,
                             dim_index,
                             min_freq,
                             root_min_freq
-                        ) for state in states.values()
-                    ]
-
-                    # Update states with results
-                    for future, key in zip(concurrent.futures.as_completed(futures), states.keys()):
-                        updated_state = future.result()
+                        )
                         if updated_state is not None:
-                            states[key] = updated_state
-            else:
-                for key, state in states.items():
-                    updated_state = self._train_single(
-                        state,
-                        shape,
-                        dim_index,
-                        min_freq,
-                        root_min_freq
-                    )
-                    if updated_state is not None:
-                        states[key] = updated_state
+                            batch_states[i] = updated_state
+
+                # Store updated states for next shape iteration
+                states[batch_state_key] = batch_states
 
         return
 
@@ -153,54 +160,36 @@ class Tokenizer(BaseTokenizer):
         state.orig_size = list(unshuffled_tensor.size())  # Update state for next iteration
 
         # Determine minimum frequency for root vocabulary
-        # TODO: if state.shape == [1, 1, 1] is not generic enough, should check for more than 3 dimensions
-        current_root_min_freq = 1 if state.shape == [1, 1, 1] else root_min_freq
+        current_root_min_freq = 1 if all(dim == 1 for dim in state.shape) else root_min_freq
 
         tensor = unshuffled_tensor[0]
         output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
-
         # Find frequent patterns and assign codes
         freq_mask = counts >= current_root_min_freq  # TODO: this needs to be tracked online
         root_tuples = tensor_to_tuple(output[freq_mask].unsqueeze(0), state.shape)[0]
-
         with self._lock:
             unique_codes = self._assign_codes(root_tuples)
-
-        # Create mapping for all patterns
         full_mapping = torch.full((counts.size(0),), -1, dtype=torch.long)
         full_mapping[freq_mask] = torch.tensor(unique_codes, dtype=torch.long)
         mapped_values = full_mapping[inverse_indices]
 
-        # Split indices
-        non_root_indices = torch.nonzero(mapped_values == -1).squeeze()  # TODO: maybe using torch.where instead
-        code_indices = torch.nonzero(mapped_values != -1).squeeze()
-        codes = mapped_values[code_indices]
+        non_root_indices = torch.where(mapped_values == -1)[0]
+        root_indices = torch.where(mapped_values != -1)[0]
+        root_codes = mapped_values[root_indices].tolist()
+        state.tensor = tensor[non_root_indices].unsqueeze(0)
+        state.code_list.extend(list(map(str, root_codes)))
 
-        # Convert to lists for further processing
-        non_root_indices = np.atleast_1d(non_root_indices).tolist() # TODO: do not use numpy for pytorch tensor
-        codes = codes.tolist()
-        code_indices = code_indices.tolist()
-
-        # Update tensor with non-root indices
-        new_tensor = tensor[non_root_indices].unsqueeze(0)
-
-        # Update tuple indices if they exist
-        # TODO: what is this for?
         if len(state.tuple_indices) > 0:
-            code_indices = torch.tensor(state.tuple_indices)[code_indices].tolist()
+            root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
             non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
+        else:
+            root_indices = root_indices.tolist()
+            non_root_indices = non_root_indices.tolist()
 
-        # TODO: is it possible to just update the instance instead of creating a new one everytime you return?
-        state = State(
-            shape=state.shape,
-            tensor=new_tensor,
-            data_dtype=state.data_dtype,
-            orig_size=state.orig_size,
-            tuple_indices=non_root_indices,
-            code_list=state.code_list + list(map(str, codes)),
-            code_indices=state.code_indices + code_indices,
-            joined_list=state.joined_list
-        )
+        # Update state for current shape
+        state.tuple_indices = non_root_indices
+        state.code_indices.extend(root_indices)
+
         return state
 
     def _split_data(self, state, scale_factor):
@@ -208,22 +197,14 @@ class Tokenizer(BaseTokenizer):
         tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
 
         if len(tuple_list) > 0:
-            orig_size = state.orig_size.copy()
-            orig_size[1] = len(tuple_list)  # Update the length dimension
-            tensor = tuple_to_tensor(tuple_list, state.shape, orig_size, state.data_dtype)
-            state = State(
-                shape=state.shape,
-                tensor=tensor,
-                data_dtype=state.data_dtype,
-                orig_size=orig_size,
-                tuple_indices=tuple_indices,
-                code_list=code_list,
-                code_indices=code_indices,
-                joined_list=state.joined_list
-            )
-        else:
-            state = None
-        return state
+            state.orig_size[1] = len(tuple_list)  # Update the length dimension
+            state.tensor = tuple_to_tensor(tuple_list, state.shape, state.orig_size, state.data_dtype)
+            state.tuple_indices = tuple_indices
+            state.code_list = code_list
+            state.code_indices = code_indices
+            return state
+        
+        return None
 
     def _assign_codes(self, tuples):
         """Assign codes to the root tuples and update the vocabulary"""
