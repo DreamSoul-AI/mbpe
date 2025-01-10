@@ -34,11 +34,9 @@ for i, (image, label) in enumerate(progress):
     tuple_list = reshape_to_tuples(image, dim=(2, 2))
     tuple_list_2_2.append(tuple_list)
 
-# 文件路径
 freq_file_path = "data/output/root_frequency_file_2_2.pkl"
 vocab_file_path = "data/output/root_vocabulary_file_2_2.pkl"
 
-# 自动创建文件夹
 os.makedirs(os.path.dirname(freq_file_path), exist_ok=True)
 
 counter = FrequencyCounter()
