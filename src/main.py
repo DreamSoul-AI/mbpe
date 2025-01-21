@@ -5,7 +5,7 @@ import mbpe
 
 torch.manual_seed(1)
 batch_size = 1
-max_workers = 1
+max_workers = 0
 
 transform = transforms.Compose([
     transforms.ToTensor(),
@@ -22,6 +22,6 @@ if __name__ == "__main__":
     max_shape = (1, 2, 2)
     dim_index = [2, 3, 4]
     min_freq = 2
-    root_min_freq = 2
+    root_min_freq = 0.01
     tokenizer.train(train_loader, max_shape, dim_index, min_freq, root_min_freq)
     print('vocabulary:', tokenizer.get_vocab())

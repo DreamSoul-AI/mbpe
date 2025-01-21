@@ -17,7 +17,7 @@ def ntuple(n):
 
 def tensor_to_tuple(tensor, shapes):
     reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
-    data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
+    data = [list(map(lambda x: tuple(map(int, x)), sub_tensor)) for sub_tensor in reshaped_tensor]
     return data
 
 
@@ -63,6 +63,13 @@ def find_tuple_shapes(dim):
             shapes.append(new_shape)
 
     return shapes
+
+
+def compute_freq(tensor, freq_table):
+    for item in tensor:
+        tup = tuple(item.flatten().tolist())
+        freq_table[tup] += 1
+    return freq_table
 
 
 def split(data, scale_factor):

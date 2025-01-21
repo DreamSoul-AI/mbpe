@@ -77,16 +77,20 @@ class Tokenizer(BaseTokenizer):
 
         # Process each shape for all images
         for shape in shapes:
+            batch_state_key = ""
+            patchify = Patchify(shape, dim_index)
+            total_tuple_count = 0
+            freq_table = defaultdict(int)
+
+            # Compute frequencies of roots for all data
             for batch_idx, (image, _) in enumerate(data_loader):
                 batch_state_key = f"batch_{batch_idx}"
-
-                # Initialize or retrieve states for this batch
                 if batch_state_key not in states.keys():
                     batch_states = []
                     for i in range(len(image)):
                         image_i = image[[i]]
                         state_i = State(
-                            shape=[],
+                            shape=shape,
                             tensor=image_i,
                             data_dtype=image_i.dtype,
                             orig_size=list(image_i.size()),
@@ -96,20 +100,37 @@ class Tokenizer(BaseTokenizer):
                             joined_list=[]
                         )
                         batch_states.append(state_i)
+                        pachified_image = patchify(image_i)[0]
+                        freq_table = compute_freq(pachified_image, freq_table)
+                        total_tuple_count += len(pachified_image)
                 else:
                     batch_states = states[batch_state_key]
-                
-                # Process the batch using threading
+                    for state in batch_states:
+                        state.shape = shape
+                        pachified_tensor = patchify(state.tensor)[0]
+                        freq_table = compute_freq(pachified_tensor, freq_table)
+                        total_tuple_count += len(pachified_tensor)
+
+                states[batch_state_key] = batch_states
+
+            # Filter the frequency table and update root vocabulary
+            for tuple_key in freq_table:
+                freq = freq_table[tuple_key] / total_tuple_count
+                if freq >= root_min_freq:
+                    update_vocab(self.vocab, self.inverse_vocab, tuple_key, str(len(self.vocab)))
+
+            print(self.inverse_vocab)
+
+            # Process the batch using threading
+            for _, batch_states in states.items():
                 if self.max_workers is not None and self.max_workers > 0:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
                         futures = [
                             executor.submit(
                                 self._train_single,
                                 state,
-                                shape,
-                                dim_index,
-                                min_freq,
-                                root_min_freq
+                                patchify,
+                                min_freq
                             ) for state in batch_states
                         ]
 
@@ -120,26 +141,19 @@ class Tokenizer(BaseTokenizer):
                                 batch_states[i] = updated_state
                 else:
                     for i in range(len(batch_states)):
-                        updated_state = self._train_single(
-                            batch_states[i],
-                            shape,
-                            dim_index,
-                            min_freq,
-                            root_min_freq
-                        )
+                        updated_state = self._train_single(batch_states[i], patchify, min_freq)
                         if updated_state is not None:
                             batch_states[i] = updated_state
+                break
 
-                # Store updated states for next shape iteration
-                states[batch_state_key] = batch_states
+            # Store updated states for next shape iteration
+            states[batch_state_key] = batch_states
+            break
 
         return
 
-    def _train_single(self, state, shape, dim_index, min_freq, root_min_freq):
+    def _train_single(self, state, patchify, min_freq):
         """Process a single batch of data"""
-        state.shape = shape
-        patchify = Patchify(shape, dim_index)
-
         # Split data if there is joined data
         scale_factor = patchify.get_scale_factor(state.orig_size)
         if len(state.joined_list) > 0:
@@ -147,35 +161,36 @@ class Tokenizer(BaseTokenizer):
 
         if state is not None:
             # Process root vocabulary
-            state = self._process_root_vocabulary(state, patchify, root_min_freq)
+            state = self._process_root_vocabulary(state, patchify)
             tuple_list = tensor_to_tuple(state.tensor, state.shape)[0]
             # Join back for merging
             joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
             state.joined_list = self._merge_pairs(joined_list, min_freq)
         return state
 
-    def _process_root_vocabulary(self, state, patchify, root_min_freq):
+    def _process_root_vocabulary(self, state, patchify):
         """Process root vocabulary for a single shape configuration"""
         unshuffled_tensor = patchify(state.tensor)
         state.orig_size = list(unshuffled_tensor.size())  # Update state for next iteration
 
-        # Determine minimum frequency for root vocabulary
-        current_root_min_freq = 1 if all(dim == 1 for dim in state.shape) else root_min_freq
+        # Determine if this is the last iteration
+        last_shape = True if all(dim == 1 for dim in state.shape) else False
 
         tensor = unshuffled_tensor[0]
-        output, inverse_indices, counts = torch.unique(tensor, return_inverse=True, return_counts=True, dim=0)
-        # Find frequent patterns and assign codes
-        freq_mask = counts >= current_root_min_freq  # TODO: this needs to be tracked online
-        root_tuples = tensor_to_tuple(output[freq_mask].unsqueeze(0), state.shape)[0]
+        code_mapping = torch.full((tensor.size(0),), -1, dtype=torch.long)
         with self._lock:
-            unique_codes = self._assign_codes(root_tuples)
-        full_mapping = torch.full((counts.size(0),), -1, dtype=torch.long)
-        full_mapping[freq_mask] = torch.tensor(unique_codes, dtype=torch.long)
-        mapped_values = full_mapping[inverse_indices]
+            for i, item in enumerate(tensor):
+                tup = tuple(item.flatten().tolist())
+                code = self.inverse_vocab.get(tup, None)
+                if code is not None:
+                    code_mapping[i] = int(code)
+                else:
+                    if last_shape:
+                        update_vocab(self.vocab, self.inverse_vocab, tup, len(self.vocab))
 
-        non_root_indices = torch.where(mapped_values == -1)[0]
-        root_indices = torch.where(mapped_values != -1)[0]
-        root_codes = mapped_values[root_indices].tolist()
+        non_root_indices = torch.where(code_mapping == -1)[0]
+        root_indices = torch.where(code_mapping != -1)[0]
+        root_codes = code_mapping[root_indices].tolist()
         state.tensor = tensor[non_root_indices].unsqueeze(0)
         state.code_list.extend(list(map(str, root_codes)))
 
@@ -203,24 +218,8 @@ class Tokenizer(BaseTokenizer):
             state.code_list = code_list
             state.code_indices = code_indices
             return state
-        
+
         return None
-
-    def _assign_codes(self, tuples):
-        """Assign codes to the root tuples and update the vocabulary"""
-        # Assign existing codes
-        unique_codes = np.array([int(self.inverse_vocab.get(tup, -1)) for tup in tuples])
-
-        # Identify new codes
-        new_codes_mask = unique_codes == -1
-        new_tuples = np.fromiter(tuples, dtype=object)[new_codes_mask]
-        new_indices = np.arange(len(self.vocab), len(self.vocab) + len(new_tuples))
-
-        # Assign new codes
-        unique_codes[new_codes_mask] = new_indices
-        unique_codes_str = list(map(str, new_indices))
-        update_vocab(self.vocab, self.inverse_vocab, new_tuples, unique_codes_str)
-        return unique_codes
 
     def _merge_pairs(self, data, min_freq):
         """Merge pairs in the data"""
