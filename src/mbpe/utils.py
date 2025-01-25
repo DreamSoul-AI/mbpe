@@ -65,10 +65,17 @@ def find_tuple_shapes(dim):
     return shapes
 
 
-def compute_freq(tensor, freq_table):
-    for item in tensor:
-        tup = tuple(item.flatten().tolist())
-        freq_table[tup] += 1
+def compute_freq(tensor, freq_table, n):
+    output, counts = torch.unique(tensor, sorted=False, return_counts=True, dim=0)
+    output_list = output.flatten(start_dim=1).tolist()
+    new_dict = {tuple(output_list[i]): counts[i].item() for i in range(len(output_list))}
+
+    for key, value in new_dict.items():
+        if key in freq_table:
+            freq_table[key] += value
+        elif value >= n:
+            freq_table[key] = value
+
     return freq_table
 
 
@@ -99,7 +106,7 @@ def join(tuples, tuple_indices, codes, code_indices):
     return joined_list
 
 
-def get_freq_pairs(mixed_list):
+def get_freq_pairs(mixed_list, freq_table=None, n=None):
     """
     Computes the frequency of all pairs.
 
@@ -114,6 +121,15 @@ def get_freq_pairs(mixed_list):
     for i in range(len(mixed_list) - 1):
         pair = (mixed_list[i], mixed_list[i + 1])
         counts[pair] += 1
+    if freq_table is not None:
+        if n is None:
+            raise ValueError("n must be provided if freq_table is not None")
+        for key, value in counts.items():
+            if key in freq_table:
+                freq_table[key] += value
+            elif value >= n:
+                freq_table[key] = value
+        return freq_table
     return counts
 
 

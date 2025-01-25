@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     max_shape = (1, 2, 2)
     dim_index = [2, 3, 4]
-    min_freq = 2
+    min_freq = 0.01
     root_min_freq = 0.01
     tokenizer.train(train_loader, max_shape, dim_index, min_freq, root_min_freq)
     print('vocabulary:', tokenizer.get_vocab())

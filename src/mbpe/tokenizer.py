@@ -54,7 +54,7 @@ class Tokenizer(BaseTokenizer):
         self.max_workers = max_workers
         self._lock = threading.Lock()
 
-    def train(self, data_loader, max_shape, dim_index, min_freq=2, root_min_freq=2):
+    def train(self, data_loader, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq=2):
         """
         Train a vocabulary of using the provided data.
 
@@ -101,14 +101,14 @@ class Tokenizer(BaseTokenizer):
                         )
                         batch_states.append(state_i)
                         pachified_image = patchify(image_i)[0]
-                        freq_table = compute_freq(pachified_image, freq_table)
+                        freq_table = compute_freq(pachified_image, freq_table, min_entrance_freq)
                         total_tuple_count += len(pachified_image)
                 else:
                     batch_states = states[batch_state_key]
                     for state in batch_states:
                         state.shape = shape
                         pachified_tensor = patchify(state.tensor)[0]
-                        freq_table = compute_freq(pachified_tensor, freq_table)
+                        freq_table = compute_freq(pachified_image, freq_table, min_entrance_freq)
                         total_tuple_count += len(pachified_tensor)
 
                 states[batch_state_key] = batch_states
@@ -119,7 +119,7 @@ class Tokenizer(BaseTokenizer):
                 if freq >= root_min_freq:
                     update_vocab(self.vocab, self.inverse_vocab, tuple_key, str(len(self.vocab)))
 
-            print(self.inverse_vocab)
+            print(self.vocab)
 
             # Process the batch using threading
             for _, batch_states in states.items():
@@ -146,8 +146,31 @@ class Tokenizer(BaseTokenizer):
                             batch_states[i] = updated_state
                 break
 
-            # Store updated states for next shape iteration
-            states[batch_state_key] = batch_states
+            while True:
+                freq_table = defaultdict(int)
+                total_pair_count = 0
+                for batch_states in states.values():
+                    for state in batch_states:
+                        freq_table = get_freq_pairs(state.joined_list, freq_table, min_entrance_freq)
+                        total_pair_count += len(state.joined_list)
+                if len(freq_table) == 0:
+                    break
+                pair, freq = get_max_pair(freq_table)
+                print(freq_table)
+                print(freq / total_pair_count)
+                if freq / total_pair_count < min_freq:
+                    break
+                code = self.inverse_vocab.get(pair, None)
+                if code is None:
+                    idx = str(len(self.vocab))
+                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+                else:
+                    idx = code
+                for batch_states in states.values():
+                    for state in batch_states:
+                        state.joined_list = merge(state.joined_list, pair, idx)
+                        print(state.joined_list)
+                        break
             break
 
         return
@@ -164,8 +187,8 @@ class Tokenizer(BaseTokenizer):
             state = self._process_root_vocabulary(state, patchify)
             tuple_list = tensor_to_tuple(state.tensor, state.shape)[0]
             # Join back for merging
-            joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
-            state.joined_list = self._merge_pairs(joined_list, min_freq)
+            state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
+            # state.joined_list = self._merge_pairs(joined_list, min_freq)
         return state
 
     def _process_root_vocabulary(self, state, patchify):
