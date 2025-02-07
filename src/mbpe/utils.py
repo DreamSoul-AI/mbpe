@@ -65,7 +65,7 @@ def find_tuple_shapes(dim):
     return shapes
 
 
-def compute_freq(tensor, freq_table, entrance_freq):
+def compute_freq(tensor, freq_table, min_entrance_freq):
     output, counts = torch.unique(tensor, sorted=False, return_counts=True, dim=0)
     output_list = output.flatten(start_dim=1).tolist()
     
@@ -77,7 +77,7 @@ def compute_freq(tensor, freq_table, entrance_freq):
         if key in freq_table:
             freq_table[key] += local_count_dict[key]
         else:
-            if value > entrance_freq:
+            if value > min_entrance_freq:
                 freq_table[key] = local_count_dict[key]
 
     return freq_table
