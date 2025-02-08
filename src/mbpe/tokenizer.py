@@ -54,7 +54,7 @@ class Tokenizer(BaseTokenizer):
         self.max_workers = max_workers
         self._lock = threading.Lock()
 
-    def train(self, data_loader, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq=2):
+    def train(self, data_loader, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq):
         """
         Train a vocabulary of using the provided data.
 
