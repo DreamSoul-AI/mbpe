@@ -1,6 +1,7 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data import DataLoader, Subset
 import mbpe
 
 torch.manual_seed(1)
@@ -13,8 +14,9 @@ transform = transforms.Compose([
 ])
 
 train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+indices = list(range(0, 10))  # load only the first n samples
+subset_dataset = Subset(train_dataset, indices)
+train_loader = DataLoader(subset_dataset, batch_size=batch_size, shuffle=False)
 
 if __name__ == "__main__":
     tokenizer = mbpe.tokenizer.Tokenizer(max_workers=max_workers)

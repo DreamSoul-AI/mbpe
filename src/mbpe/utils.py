@@ -17,7 +17,7 @@ def ntuple(n):
 
 def tensor_to_tuple(tensor, shapes):
     reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
-    data = [list(map(lambda x: tuple(map(int, x)), sub_tensor)) for sub_tensor in reshaped_tensor]
+    data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
     return data
 
 

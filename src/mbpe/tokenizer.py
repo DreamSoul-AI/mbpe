@@ -107,9 +107,9 @@ class Tokenizer(BaseTokenizer):
                     batch_states = states[batch_state_key]
                     for state in batch_states:
                         state.shape = shape
-                        pachified_tensor = patchify(state.tensor)[0]
+                        pachified_image = patchify(state.tensor)[0]
                         freq_table = compute_freq(pachified_image, freq_table, min_entrance_freq)
-                        total_tuple_count += len(pachified_tensor)
+                        total_tuple_count += len(pachified_image)
 
                 states[batch_state_key] = batch_states
 
@@ -125,14 +125,7 @@ class Tokenizer(BaseTokenizer):
             for _, batch_states in states.items():
                 if self.max_workers is not None and self.max_workers > 0:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                        futures = [
-                            executor.submit(
-                                self._train_single,
-                                state,
-                                patchify,
-                                min_freq
-                            ) for state in batch_states
-                        ]
+                        futures = [executor.submit(self._train_single, state, patchify) for state in batch_states]
 
                         # Update batch states with results
                         for i, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -141,10 +134,9 @@ class Tokenizer(BaseTokenizer):
                                 batch_states[i] = updated_state
                 else:
                     for i in range(len(batch_states)):
-                        updated_state = self._train_single(batch_states[i], patchify, min_freq)
+                        updated_state = self._train_single(batch_states[i], patchify)
                         if updated_state is not None:
                             batch_states[i] = updated_state
-                break
 
             while True:
                 freq_table = defaultdict(int)
@@ -156,8 +148,6 @@ class Tokenizer(BaseTokenizer):
                 if len(freq_table) == 0:
                     break
                 pair, freq = get_max_pair(freq_table)
-                print(freq_table)
-                print(freq / total_pair_count)
                 if freq / total_pair_count < min_freq:
                     break
                 code = self.inverse_vocab.get(pair, None)
@@ -169,13 +159,11 @@ class Tokenizer(BaseTokenizer):
                 for batch_states in states.values():
                     for state in batch_states:
                         state.joined_list = merge(state.joined_list, pair, idx)
-                        print(state.joined_list)
-                        break
-            break
+                        # print(state.joined_list)
 
         return
 
-    def _train_single(self, state, patchify, min_freq):
+    def _train_single(self, state, patchify):
         """Process a single batch of data"""
         # Split data if there is joined data
         scale_factor = patchify.get_scale_factor(state.orig_size)
@@ -200,15 +188,17 @@ class Tokenizer(BaseTokenizer):
         last_shape = True if all(dim == 1 for dim in state.shape) else False
 
         tensor = unshuffled_tensor[0]
+        tuple_list = tensor_to_tuple(unshuffled_tensor, state.shape)[0]
         code_mapping = torch.full((tensor.size(0),), -1, dtype=torch.long)
+        # Update code_mapping using the root vocabulary
         with self._lock:
-            for i, item in enumerate(tensor):
-                tup = tuple(item.flatten().tolist())
+            for i, tup in enumerate(tuple_list):
                 code = self.inverse_vocab.get(tup, None)
                 if code is not None:
                     code_mapping[i] = int(code)
                 else:
                     if last_shape:
+                        code_mapping[i] = len(self.vocab)
                         update_vocab(self.vocab, self.inverse_vocab, tup, len(self.vocab))
 
         non_root_indices = torch.where(code_mapping == -1)[0]
