@@ -1,89 +1,62 @@
-import pickle
-import os
 from collections import defaultdict
 
-
 class FrequencyCounter:
-    def __init__(self):
-        pass
+    def __init__(self, min_freq=0):
+        """Initialize FrequencyCounter with an optional min_freq parameter."""
+        self.min_freq = min_freq
+        self.global_freq_table = defaultdict(lambda: {"total_count": 0, "global_frequency": 0.0})
+        self.total_batch_size = 0
+    
+    def initialize_local_freq_table(self):
+        """Step 1: Initialize local_freq_table."""
+        return defaultdict(lambda: {"count": 0, "frequency": 0.0})
 
-    def load_cumulative_frequency(self, file_path, reset=False):
-        """
-        Load the cumulative frequency dictionary from a pickle file.
-        If the file does not exist or `reset=True`, return an empty dictionary.
-        """
-        if reset or not os.path.exists(file_path):  # Check if the file exists
-            return defaultdict(int), 0  # Initialize: an empty tuple count dictionary and a total tuple count
-        try:
-            with open(file_path, "rb") as f:
-                return pickle.load(f)
-        except (FileNotFoundError, EOFError):
-            return defaultdict(int), 0  # Initialize: an empty tuple count dictionary and total tuple count
+    def count_frequencies_in_batch(self, batch, local_freq_table):
+        """Step 2: Count frequency of each item in the current batch."""
+        for item in batch:
+            local_freq_table[item]["count"] += 1
+        return local_freq_table
 
-    def save_cumulative_frequency(self, cumulative_tuple_counts, total_tuple_count, file_path):
-        """
-        Save the cumulative frequency dictionary to a pickle file.
+    def calculate_local_frequencies(self, local_freq_table, batch_size):
+        """Step 3: Calculate frequency for each item in the batch."""
+        for item in local_freq_table:
+            local_freq_table[item]["frequency"] = local_freq_table[item]["count"] / batch_size
+        return local_freq_table
 
-        Parameters:
-        cumulative_tuple_counts (dict): Dictionary of cumulative tuple counts.
-        total_tuple_count (int): Total count of tuples.
-        file_path (str): File path to save the frequency dictionary.
-        """
-        with open(file_path, "wb") as f:
-            pickle.dump((cumulative_tuple_counts, total_tuple_count), f)
+    def update_global_freq_table(self, local_freq_table, batch_size):
+        """Step 4: Update global_freq_table based on the local_freq_table."""
+        for item, info in local_freq_table.items():
+            frequency = info["frequency"]
+            
+            # Only process items whose frequency is greater than or equal to min_freq
+            if item in self.global_freq_table:
+                self.global_freq_table[item]["total_count"] += info["count"]
+                self.global_freq_table[item]["global_frequency"] = (
+                    self.global_freq_table[item]["total_count"] / (self.total_batch_size + batch_size)
+                )
+            else:
+                if frequency >= self.min_freq:
+                    self.global_freq_table[item] = {
+                        "total_count": info["count"],
+                        "global_frequency": info["count"] / (self.total_batch_size + batch_size)
+                    }
 
-    def save_vocab(self, vocab, file_path):
-        """
-        Save the vocabulary to a pickle file.
-
-        Parameters:
-        vocab (dict): A dictionary containing tuples and their corresponding frequencies.
-        file_path (str): The file path to save the vocabulary.
-        """
-        with open(file_path, "wb") as f:
-            pickle.dump(vocab, f)
-
-    def calculate_and_filter_frequency(self, input_list, freq_file_path, vocab_file_path=None, reset=False, min_root_freq=None):
-        """
-        Calculate the frequency of tuples in the current list, save the frequency dictionary,
-        and optionally filter tuples with frequencies greater than a threshold.
-
-        Parameters:
-        input_list (list): A list containing tuples and other types of data.
-        freq_file_path (str): The file path to save the frequency dictionary.
-        vocab_file_path (str): Optional. The file path to save the vocabulary dictionary.
-        reset (bool): If True, clear the saved frequency data.
-        min_root_freq (float): Optional. If provided, filter tuples with frequencies greater than this value.
-
-        Returns:
-        dict: A dictionary containing filtered vocabulary if min_root_freq is provided, otherwise the cumulative frequency dictionary.
-        """
-        # Load existing cumulative frequency data
-        cumulative_tuple_counts, total_tuple_count = self.load_cumulative_frequency(freq_file_path, reset=reset)
-
-        # Iterate through the current list, count the occurrences of tuples, and update
-        for item in input_list:
-            if isinstance(item, tuple):
-                cumulative_tuple_counts[item] += 1
-                total_tuple_count += 1
-
-        # Save the updated cumulative frequency data
-        self.save_cumulative_frequency(cumulative_tuple_counts, total_tuple_count, freq_file_path)
-
-        # Calculate cumulative frequency
-        cumulative_frequency = {key: count / total_tuple_count for key, count in cumulative_tuple_counts.items()}
-
-        # Save the complete frequency table (before filtering)
-        self.save_cumulative_frequency(cumulative_tuple_counts, total_tuple_count, freq_file_path)
-
-        # If min_root_freq is provided, filter the frequency dictionary
-        if min_root_freq is not None:
-            filtered_vocab = {key: freq for key, freq in cumulative_frequency.items() if freq > min_root_freq}
-
-            # Save the filtered vocabulary if a file path is provided
-            if vocab_file_path:
-                self.save_vocab(filtered_vocab, vocab_file_path)
-
-            return cumulative_frequency, filtered_vocab
-
-        return cumulative_frequency, None
+    def update_freq_tables(self, batch):
+        """Update both local and global frequency tables."""
+        # Initialize the local frequency table for the current batch
+        local_freq_table = self.initialize_local_freq_table()
+        
+        # Count frequencies in the current batch
+        local_freq_table = self.count_frequencies_in_batch(batch, local_freq_table)
+        
+        # Calculate frequency for each item in the current batch
+        local_freq_table = self.calculate_local_frequencies(local_freq_table, len(batch))
+        
+        # Update the global frequency table based on the local frequency tab
+        # le
+        self.update_global_freq_table(local_freq_table, len(batch))
+        
+        # Update the total_batch_size to reflect the total number of processed items
+        self.total_batch_size += len(batch)
+        
+        return local_freq_table, self.global_freq_table
