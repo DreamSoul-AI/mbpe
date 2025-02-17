@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List
 from .utils import *
 from .patch import *
+from .frequency_counter import FrequencyCounter
 import concurrent.futures
 import threading
 import torch
@@ -54,7 +55,7 @@ class Tokenizer(BaseTokenizer):
         self.max_workers = max_workers
         self._lock = threading.Lock()
 
-    def train(self, data_loader, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq):
+    def train(self, data_loader, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq=0.01):
         """
         Train a vocabulary of using the provided data.
 
@@ -77,55 +78,18 @@ class Tokenizer(BaseTokenizer):
 
         # Process each shape for all images
         for shape in shapes:
-            batch_state_key = ""
             patchify = Patchify(shape, dim_index)
-            total_tuple_count = 0
-            freq_table = defaultdict(int)
-
-            # Compute frequencies of roots for all data
-            for batch_idx, (image, _) in enumerate(data_loader):
-                batch_state_key = f"batch_{batch_idx}"
-                if batch_state_key not in states.keys():
-                    batch_states = []
-                    for i in range(len(image)):
-                        image_i = image[[i]]
-                        state_i = State(
-                            shape=shape,
-                            tensor=image_i,
-                            data_dtype=image_i.dtype,
-                            orig_size=list(image_i.size()),
-                            tuple_indices=[],
-                            code_list=[],
-                            code_indices=[],
-                            joined_list=[]
-                        )
-                        batch_states.append(state_i)
-                        pachified_image = patchify(image_i)[0]
-                        freq_table = compute_freq(pachified_image, freq_table, min_entrance_freq)
-                        total_tuple_count += len(pachified_image)
-                else:
-                    batch_states = states[batch_state_key]
-                    for state in batch_states:
-                        state.shape = shape
-                        pachified_image = patchify(state.tensor)[0]
-                        freq_table = compute_freq(pachified_image, freq_table, min_entrance_freq)
-                        total_tuple_count += len(pachified_image)
-
-                states[batch_state_key] = batch_states
-
-            # Filter the frequency table and update root vocabulary
-            for tuple_key in freq_table:
-                freq = freq_table[tuple_key] / total_tuple_count
-                if freq >= root_min_freq:
-                    update_vocab(self.vocab, self.inverse_vocab, tuple_key, str(len(self.vocab)))
+            counter = FrequencyCounter(min_entrance_freq, root_min_freq)
+            self._setup(data_loader, shape, patchify, counter, states)
 
             print(self.vocab)
+            exit()
 
             # Process the batch using threading
             for _, batch_states in states.items():
                 if self.max_workers is not None and self.max_workers > 0:
                     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                        futures = [executor.submit(self._train_single, state, patchify) for state in batch_states]
+                        futures = [executor.submit(self._process_batch_root, state, patchify) for state in batch_states]
 
                         # Update batch states with results
                         for i, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -134,36 +98,45 @@ class Tokenizer(BaseTokenizer):
                                 batch_states[i] = updated_state
                 else:
                     for i in range(len(batch_states)):
-                        updated_state = self._train_single(batch_states[i], patchify)
+                        updated_state = self._process_batch_root(batch_states[i], patchify)
                         if updated_state is not None:
                             batch_states[i] = updated_state
 
-            while True:
-                freq_table = defaultdict(int)
-                total_pair_count = 0
-                for batch_states in states.values():
-                    for state in batch_states:
-                        freq_table = get_freq_pairs(state.joined_list, freq_table, min_entrance_freq)
-                        total_pair_count += len(state.joined_list)
-                if len(freq_table) == 0:
-                    break
-                pair, freq = get_max_pair(freq_table)
-                if freq / total_pair_count < min_freq:
-                    break
-                code = self.inverse_vocab.get(pair, None)
-                if code is None:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-                else:
-                    idx = code
-                for batch_states in states.values():
-                    for state in batch_states:
-                        state.joined_list = merge(state.joined_list, pair, idx)
-                        # print(state.joined_list)
+            # Merge pairs
+            self._merge_pairs(states, min_freq, min_entrance_freq)
 
         return
 
-    def _train_single(self, state, patchify):
+    def _setup(self, data_loader, shape, patchify, counter, states):
+        for batch_idx, (image, _) in enumerate(data_loader):
+            batch_state_key = f"batch_{batch_idx}"
+            if batch_state_key not in states.keys():
+                batch_states = []
+                for i in range(len(image)):
+                    image_i = image[[i]]
+                    state_i = State(
+                        shape=shape,
+                        tensor=image_i,
+                        data_dtype=image_i.dtype,
+                        orig_size=list(image_i.size()),
+                        tuple_indices=[],
+                        code_list=[],
+                        code_indices=[],
+                        joined_list=[]
+                    )
+                    batch_states.append(state_i)
+                    pachified_image = patchify(image_i)[0]
+                    counter.update_freq_tables(pachified_image, self.vocab, self.inverse_vocab)
+            else:
+                batch_states = states[batch_state_key]
+                for state in batch_states:
+                    state.shape = shape
+                    pachified_image = patchify(state.tensor)[0]
+                    counter.update_freq_tables(pachified_image, self.vocab, self.inverse_vocab)
+
+            states[batch_state_key] = batch_states
+
+    def _process_batch_root(self, state, patchify):
         """Process a single batch of data"""
         # Split data if there is joined data
         scale_factor = patchify.get_scale_factor(state.orig_size)
@@ -172,15 +145,14 @@ class Tokenizer(BaseTokenizer):
 
         if state is not None:
             # Process root vocabulary
-            state = self._process_root_vocabulary(state, patchify)
+            state = self._process_root_state(state, patchify)
             tuple_list = tensor_to_tuple(state.tensor, state.shape)[0]
             # Join back for merging
             state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
-            # state.joined_list = self._merge_pairs(joined_list, min_freq)
         return state
 
-    def _process_root_vocabulary(self, state, patchify):
-        """Process root vocabulary for a single shape configuration"""
+    def _process_root_state(self, state, patchify):
+        """Process root state for a single shape configuration"""
         unshuffled_tensor = patchify(state.tensor)
         state.orig_size = list(unshuffled_tensor.size())  # Update state for next iteration
 
@@ -234,26 +206,29 @@ class Tokenizer(BaseTokenizer):
 
         return None
 
-    def _merge_pairs(self, data, min_freq):
-        """Merge pairs in the data"""
+    def _merge_pairs(self, states, min_freq, min_entrance_freq):
         while True:
-            stats = get_freq_pairs(data)
-            pair, freq = get_max_pair(stats)
-
-            if freq < min_freq:  # this min_freq needs to be tracked online
+            freq_table = defaultdict(int)
+            total_pair_count = 0
+            for batch_states in states.values():
+                for state in batch_states:
+                    freq_table = get_freq_pairs(state.joined_list, freq_table, min_entrance_freq)
+                    total_pair_count += len(state.joined_list)
+            if len(freq_table) == 0:
                 break
-
-            with self._lock:
-                # Look up the pair in the inverse_vocab
-                code = self.inverse_vocab.get(pair, None)
-                if code is None:
-                    idx = str(len(self.vocab))
-                    update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-                else:
-                    idx = code
-
-            data = merge(data, pair, idx)
-        return data
+            pair, freq = get_max_pair(freq_table)
+            if freq / total_pair_count < min_freq:
+                break
+            code = self.inverse_vocab.get(pair, None)
+            if code is None:
+                idx = str(len(self.vocab))
+                update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+            else:
+                idx = code
+            for batch_states in states.values():
+                for state in batch_states:
+                    state.joined_list = merge(state.joined_list, pair, idx)
+                    # print(state.joined_list)
 
     def encode(self, data, max_shape):
         """

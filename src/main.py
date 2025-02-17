@@ -14,7 +14,7 @@ transform = transforms.Compose([
 ])
 
 train_dataset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
-indices = list(range(0, 10))  # load only the first n samples
+indices = list(range(0, 2))  # load only the first n samples
 subset_dataset = Subset(train_dataset, indices)
 train_loader = DataLoader(subset_dataset, batch_size=batch_size, shuffle=False)
 
