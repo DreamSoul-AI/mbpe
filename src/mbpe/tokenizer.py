@@ -79,7 +79,7 @@ class Tokenizer(BaseTokenizer):
         # Process each shape for all images
         for shape in shapes:
             patchify = Patchify(shape, dim_index)
-            counter = FrequencyCounter(min_entrance_freq, root_min_freq)
+            counter = FrequencyCounter(min_entrance_freq, root_min_freq, min_freq)
             self._setup(data_loader, shape, patchify, counter, states)
 
             print(self.vocab)
@@ -208,16 +208,14 @@ class Tokenizer(BaseTokenizer):
 
     def _merge_pairs(self, states, min_freq, min_entrance_freq):
         while True:
-            freq_table = defaultdict(int)
-            total_pair_count = 0
             for batch_states in states.values():
                 for state in batch_states:
-                    freq_table = get_freq_pairs(state.joined_list, freq_table, min_entrance_freq)
-                    total_pair_count += len(state.joined_list)
+                    FrequencyCounter.update_merge_freq_tables(state.joined_list)
+            freq_table = FrequencyCounter.get_global_merge_freq_table()
             if len(freq_table) == 0:
                 break
-            pair, freq = get_max_pair(freq_table)
-            if freq / total_pair_count < min_freq:
+            pair, freq = FrequencyCounter.get_max_merge_pair(freq_table).items()
+            if freq < min_freq:
                 break
             code = self.inverse_vocab.get(pair, None)
             if code is None:
