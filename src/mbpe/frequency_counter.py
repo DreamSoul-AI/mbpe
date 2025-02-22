@@ -4,20 +4,16 @@ import torch
 
 
 class FrequencyCounter:
-    def __init__(self, min_entrance_freq=0, min_root_freq=0, min_merge_freq=0):
+    def __init__(self, min_entrance_freq=0, min_root_freq=0):
         """Initialize FrequencyCounter with an optional min_entrance_freq and min_root_freq parameters."""
         self.min_entrance_freq = min_entrance_freq
         self.min_root_freq = min_root_freq  # Minimum frequency threshold for root vocabulary
         self.global_freq_table = defaultdict(lambda: {"global_count": 0, "global_frequency": 0.0})
-        self.global_merge_freq_table = defaultdict(lambda: {"global_count": 0, "global_frequency": 0.0})
-        self.max_merge_pair = {"pair": None, "global_frequency": 0.0}  # TODO: only initialize this if we are in the merge phase
+        self.max_merge_pair = {"pair": None, "global_frequency": 0.0}
         self.total_count = 0
 
     def get_global_freq_table(self):
         return self.global_freq_table
-    
-    def get_global_merge_freq_table(self):
-        return self.global_merge_freq_table
     
     def get_max_merge_pair(self):
         return self.max_merge_pair
@@ -38,16 +34,16 @@ class FrequencyCounter:
         """Step 2: Count frequency of each item in the current list."""
         for i in range(len(joined_list) - 1):
             pair = (joined_list[i], joined_list[i + 1])
-            local_freq_table[pair] += 1
+            local_freq_table[pair]["count"] += 1
         return local_freq_table
 
-    def calculate_local_frequencies(self, local_freq_table, tensor_size):
+    def calculate_local_frequencies(self, local_freq_table, size):
         """Step 3: Calculate frequency for each item in the batch."""
         for item in local_freq_table:
-            local_freq_table[item]["frequency"] = local_freq_table[item]["count"] / tensor_size
+            local_freq_table[item]["frequency"] = local_freq_table[item]["count"] / size
         return local_freq_table
 
-    def update_global_freq_table(self, local_freq_table, tensor_size):
+    def update_global_freq_table(self, local_freq_table, size, update_merge_pair=False):
         """Step 4: Update global_freq_table based on the local_freq_table."""
         for item, info in local_freq_table.items():
             frequency = info["frequency"]
@@ -56,17 +52,16 @@ class FrequencyCounter:
             if item in self.global_freq_table:
                 self.global_freq_table[item]["global_count"] += info["count"]
                 self.global_freq_table[item]["global_frequency"] = (
-                    self.global_freq_table[item]["global_count"] / (self.total_count + tensor_size)
+                    self.global_freq_table[item]["global_count"] / (self.total_count + size)
                 )
             else:
                 if frequency >= self.min_entrance_freq:
                     self.global_freq_table[item] = {
                         "global_count": info["count"],
-                        "global_frequency": info["count"] / (self.total_count + tensor_size)
+                        "global_frequency": info["count"] / (self.total_count + size)
                     }
             
-            # TODO: only run this if we are in the merge phase
-            if self.max_merge_pair["global_frequency"] < self.global_freq_table[item]["global_frequency"]:
+            if update_merge_pair and self.max_merge_pair["global_frequency"] < self.global_freq_table[item]["global_frequency"]:
                 self.max_merge_pair["pair"] = item
                 self.max_merge_pair["global_frequency"] = self.global_freq_table[item]["global_frequency"]
 
@@ -100,18 +95,11 @@ class FrequencyCounter:
     
     def update_merge_freq_tables(self, mixed_list):
         """Update merge frequency tables."""
-        # Initialize the local frequency table for the current batch
+        if len(self.global_freq_table) > 0:
+            self.global_freq_table = defaultdict(lambda: {"global_count": 0, "global_frequency": 0.0})
         local_freq_table = self.initialize_local_freq_table()
-
-        # Count frequencies in the current batch
         local_freq_table = self.count_frequencies_in_list(mixed_list, local_freq_table)
-
-        # Calculate frequency for each item in the current tensor
         local_freq_table = self.calculate_local_frequencies(local_freq_table, len(mixed_list))
-
-        # Update the global frequency table based on the local frequency table
-        self.update_global_freq_table(local_freq_table, len(mixed_list))
-
+        self.update_global_freq_table(local_freq_table, len(mixed_list), update_merge_pair=True)
         self.total_count += len(mixed_list)
-
         return local_freq_table
