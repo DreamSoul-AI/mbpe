@@ -26,5 +26,5 @@ if __name__ == "__main__":
     min_freq = 0.01
     root_min_freq = 0.01
     min_entrance_freq = 0.01
-    tokenizer.train(dataset, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq)
+    tokenizer.train(dataset, data_name, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq)
     print('vocabulary:', tokenizer.get_vocab())

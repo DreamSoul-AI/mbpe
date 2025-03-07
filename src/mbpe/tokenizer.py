@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 
 @dataclass
-class State:
+class State: # TODO: make a standard class
     """Holds the current state of training process"""
     shape: List[int]
     tensor: Tensor
@@ -75,7 +75,7 @@ class Tokenizer(BaseTokenizer):
                 data = data[data_name]
                 for i in range(len(data)):
                     data_i = data[[i]]
-                    if index_tracker in states:
+                    if index_tracker not in states:
                         state_i = State(
                             shape=shape,
                             tensor=data_i,
@@ -95,7 +95,7 @@ class Tokenizer(BaseTokenizer):
                         pachified_data = patchify(state_i.tensor)[0]
                         freq_counter.update_freq_tables(pachified_data, self.vocab, self.inverse_vocab)
                     updated_state = self._process_batch_root(state_i, patchify)
-                    if updated_state is not None:
+                    if updated_state is not None: # TODO: do we need to check
                         states[index_tracker] = updated_state
 
 
@@ -159,7 +159,7 @@ class Tokenizer(BaseTokenizer):
     #         states[batch_state_key] = batch_states
     #     return
 
-    def _process_batch_root(self, state, patchify):
+    def _process_batch_root(self, state, patchify): # TODO: need to rename
         """Process a single batch of data"""
         # Split data if there is joined data
         scale_factor = patchify.get_scale_factor(state.orig_size)
@@ -229,7 +229,7 @@ class Tokenizer(BaseTokenizer):
 
         return None
 
-    def _merge_pairs(self, states, min_freq, min_entrance_freq):
+    def _merge_pairs(self, states, min_freq, min_entrance_freq): # TODO: this should take in state not states
         while True:
             counter = FrequencyCounter(min_entrance_freq)  # TODO: why another counter here?
             # for batch_states in states.values(): # TODO: Another for loop here
