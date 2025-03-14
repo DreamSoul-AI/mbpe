@@ -25,19 +25,22 @@ class Patchify(nn.Module):
                 return factor
         return 1
 
-    def forward(self, x):
+    def forward(self, x, is_batch=True):
         """
         Patchify the input tensor.
         :param x: Input tensor of shape (batch_size, channels, height, width).
         :return: Patchified tensor.
         """
-
+        if not is_batch:
+            x = x.unsqueeze(0)
         # Dynamically calculate downscale factor
         downscale_factor = [
             x.shape[self.dim_index[i]] // self.patch_size[i] for i in range(len(self.dim_index))
         ]
-        # print(downscale_factor)
-        return self._tensor_unshuffle(x, downscale_factor, self.dim_index)
+        x = self._tensor_unshuffle(x, downscale_factor, self.dim_index)
+        if not is_batch:
+            x = x.squeeze(0)
+        return x
 
     @staticmethod
     def _tensor_unshuffle(tensor, downscale_factor, dim_index):
@@ -73,17 +76,21 @@ class Reconstruct(nn.Module):
         self.data_size = data_size
         self.dim_index = dim_index
 
-    def forward(self, x):
+    def forward(self, x, is_batch=True):
         """
         Reconstruct the original tensor from patches.
         :param x: Patchified tensor.
         :return: Reconstructed tensor.
         """
+        if not is_batch:
+            x = x.unsqueeze(0)
         upscale_factor = [
             self.data_size[self.dim_index[i]] // x.shape[-len(self.dim_index):][i] for i in range(len(self.dim_index))
         ]
-
-        return self._tensor_shuffle(x, upscale_factor, self.dim_index)
+        x = self._tensor_shuffle(x, upscale_factor, self.dim_index)
+        if not is_batch:
+            x = x.squeeze(0)
+        return x
 
     @staticmethod
     def _tensor_shuffle(tensor, upscale_factor, dim_index):

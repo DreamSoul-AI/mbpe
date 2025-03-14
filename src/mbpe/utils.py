@@ -3,7 +3,6 @@ import torch
 from collections.abc import Iterable
 from collections import defaultdict
 from itertools import repeat
-from .tensor_shuffle import tensor_unshuffle, tensor_shuffle
 
 
 def ntuple(n):
@@ -15,16 +14,12 @@ def ntuple(n):
     return parse
 
 
-def tensor_to_tuple(tensor, shapes):
-    reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
-    data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
-    return data
+class AddSequenceDim:
+    def __init__(self, dim):
+        self.dim = dim
 
-
-def tuple_to_tensor(tuple_list, shapes, orig_size, dtype):
-    reshaped_tensor = torch.tensor(tuple_list).to(dtype)
-    tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes).reshape(orig_size)
-    return tensor
+    def __call__(self, x):
+        return x.unsqueeze(self.dim)
 
 
 def find_tuple_shapes(dim):
@@ -65,6 +60,25 @@ def find_tuple_shapes(dim):
     return shapes
 
 
+def tensor_to_tuple(tensor, shapes, is_batch=True):  # TODO: need to rename argument
+    if is_batch:
+        reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
+        data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
+    else:
+        reshaped_tensor = tensor.numpy().reshape(-1, np.prod(shapes))
+        data = list(map(tuple, reshaped_tensor))
+    return data
+
+
+def tuple_to_tensor(tuple_list, shapes, orig_size, dtype, is_batch=True):  # TODO: need to rename argument
+    reshaped_tensor = torch.tensor(tuple_list).to(dtype)
+    if is_batch:
+        tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes).reshape(orig_size)
+    else:
+        tensor = reshaped_tensor.reshape(-1, *shapes).reshape(orig_size)
+    return tensor
+
+
 def split(data, scale_factor):
     tuples = []
     tuples_indices = []
@@ -90,6 +104,21 @@ def join(tuples, tuple_indices, codes, code_indices):
     merged[code_indices] = codes
     joined_list = list(merged)
     return joined_list
+
+
+def update_vocab(vocab, inv_vocab, msg, code):
+    if isinstance(msg, tuple):
+        vocab[code] = msg
+        inv_vocab[msg] = code
+    elif isinstance(msg, list) and isinstance(msg, list):
+        if len(msg) != len(code):
+            raise ValueError("Number of pairs must match number of indices")
+        for msg_i, code_i in zip(msg, code):
+            vocab[code_i] = msg_i
+            inv_vocab[msg_i] = code_i
+    else:
+        raise ValueError('Not valid msg and code')
+    return
 
 
 def get_freq_pairs(mixed_list, freq_table=None, n=None):
@@ -134,21 +163,6 @@ def get_max_pair(pairs):
     max_pair = max(pairs, key=pairs.get)
     freq = pairs[max_pair]
     return max_pair, freq
-
-
-def update_vocab(vocab, inv_vocab, pairs, indices):
-    if isinstance(pairs, tuple):
-        vocab[indices] = pairs
-        inv_vocab[pairs] = indices
-        return
-
-    if len(pairs) != len(indices):
-        raise ValueError("Number of pairs must match number of indices")
-
-    for pair, index in zip(pairs, indices):
-        vocab[index] = pair
-        inv_vocab[pair] = index
-    return
 
 
 def merge(tuple_list, vocab, idx):
