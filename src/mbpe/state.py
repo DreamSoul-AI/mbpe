@@ -16,6 +16,7 @@ class State:
         return (f"State(\n"
                 f"  data=dtype({self.dtype}), size={self.size},\n"
                 f"  code_size={self.code_size},\n"
+                f"  tuple_list={self.tuple_list},\n"
                 f"  tuple_indices={self.tuple_indices},\n"
                 f"  code_list={self.code_list},\n"
                 f"  code_indices={self.code_indices},\n"
