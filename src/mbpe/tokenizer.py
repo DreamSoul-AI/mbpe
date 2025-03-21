@@ -80,8 +80,8 @@ class Tokenizer(BaseTokenizer):
             scale_factor = patchify.get_scale_factor(state.size)
             tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
             if len(tuple_list) > 0:
-                state.size[1] = len(tuple_list)  # Update the length dimension # TODO: this has bug
-                state.data = tuple_to_tensor(tuple_list, state.code_size, state.size, state.dtype)
+                state.size[0] = len(tuple_list)  # Update the length dimension
+                state.data = tuple_to_tensor(tuple_list, state.code_size, state.size, state.dtype, is_batch=False)
                 state.tuple_indices = tuple_indices
                 state.code_list = code_list
                 state.code_indices = code_indices
@@ -113,7 +113,7 @@ class Tokenizer(BaseTokenizer):
         state.tuple_indices = non_root_indices
         state.code_indices.extend(root_indices)
         state.tuple_list = tensor_to_tuple(state.data, state.code_size, is_batch=False)
-        state.joined_list = join(state.tuple_list, state.tuple_indices, state.code_list, state.code_indices)
+        state.joined_list = join(state.tuple_list, state.tuple_indices, state.code_list, state.code_indices)  # TODO: has bug
         return state
 
     def _merge_pairs(self, state, min_freq, min_entrance_freq):
