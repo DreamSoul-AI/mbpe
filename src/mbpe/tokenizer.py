@@ -10,28 +10,20 @@ from .state import State
 
 
 class BaseTokenizer:
-    """Base class for Tokenizer"""
-
     def __init__(self):
-        self.vocab = dict()
+        self.vocab = dict()  # TODO: make it into one dictionary
         self.inverse_vocab = dict()
 
     def __len__(self):
         return len(self.vocab)
 
-    def get_vocab(self):
-        return self.vocab
-
-    def train(self, data, data_name, max_shape, dim_index, min_freq, root_min_freq, min_entrance_freq):
-        # Tokenizer can train a vocabulary of size vocab_size from given data
+    def train(self, **kwargs):
         raise NotImplementedError
 
-    def encode(self, data, max_shape):
-        # Tokenizer can encode a list of tuples based on the trained vocabulary
+    def encode(self, **kwargs):
         raise NotImplementedError
 
-    def decode(self, encoded):
-        # Tokenizer can decode a list of encoded tuples into the original data
+    def decode(self, **kwargs):
         raise NotImplementedError
 
 
@@ -43,16 +35,17 @@ class Tokenizer(BaseTokenizer):
         self._lock = threading.Lock()
 
     @torch.no_grad()
-    def train(self, dataset, data_name, max_code_size, dim_index, min_freq, root_min_freq, min_entrance_freq):
+    def train(self, dataset, data_name, max_code_size, dim_index, min_freq):
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         code_sizes = find_tuple_shapes(max_code_size)
         print('Found Code Sizes:{}'.format(code_sizes))
         states = {}
+        freq_counters = {}
         # TODO: rewrite (working)
         for m, code_size in enumerate(code_sizes):
             patchify = Patchify(code_size, dim_index)
-            # freq_counter = FrequencyCounter(min_entrance_freq, root_min_freq)
             index_tracker = 0
+            freq_counters[code_size] = FrequencyCounter(min_freq)
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
                 for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
@@ -76,7 +69,7 @@ class Tokenizer(BaseTokenizer):
         return
 
     def process_root(self, state, patchify, is_last):
-        if len(state.joined_list) > 0: # TODO: this should be moved to merge
+        if len(state.joined_list) > 0:  # TODO: this should be moved to merge
             scale_factor = patchify.get_scale_factor(state.size)
             tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
             if len(tuple_list) > 0:
@@ -88,7 +81,7 @@ class Tokenizer(BaseTokenizer):
                 state.code_indices = code_indices
         else:  # TODO: this only runs for the first shape, when the joined list not exist?
             unshuffled_data = patchify(state.data, is_batch=False)
-            state.size = list(unshuffled_data.size()) # TODO: duplicate
+            state.size = list(unshuffled_data.size())  # TODO: duplicate
             # TODO: this could be run initialily
             tuple_list = tensor_to_tuple(unshuffled_data, state.code_size, is_batch=False)
             code_mapping = torch.full((unshuffled_data.size(0),), -1, dtype=torch.long)
@@ -117,6 +110,39 @@ class Tokenizer(BaseTokenizer):
             # TODO: has bug
             state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
         return state
+
+    def _merge_pairs(self, state, min_freq, min_entrance_freq):
+        while True:
+            counter = FrequencyCounter(min_entrance_freq)  # TODO: why another counter here?
+            # for batch_states in states.values(): # TODO: Another for loop here
+            #     for state in batch_states:
+            #         counter.update_merge_freq_tables(state.joined_list)
+            # for state_i in states.values():
+            #     counter.update_merge_freq_tables(state_i.joined_list)
+            counter.update_merge_freq_tables(state.joined_list)
+
+            freq_table = counter.get_global_freq_table()
+            # print(freq_table)
+            if len(freq_table) == 0:
+                break
+
+            pair, freq = counter.get_max_merge_pair().values()
+            # print(pair, freq)
+            if freq < min_freq:
+                break
+            code = self.inverse_vocab.get(pair, None)
+            if code is None:
+                idx = str(len(self.vocab))
+                update_vocab(self.vocab, self.inverse_vocab, pair, idx)
+            else:
+                idx = code
+            # for batch_states in states.values():
+            #     for state in batch_states:
+            #         state.joined_list = merge(state.joined_list, pair, idx)
+            # print(state.joined_list)
+            state.joined_list = merge(state.joined_list, pair, idx)
+            # TODO: need to convert
+        return
 
     # def _process_batch_root(self, state, patchify):
     #     """Process a single batch of data"""
@@ -187,39 +213,6 @@ class Tokenizer(BaseTokenizer):
     #         return state
     #
     #     return None
-
-    def _merge_pairs(self, state, min_freq, min_entrance_freq):
-        while True:
-            counter = FrequencyCounter(min_entrance_freq)  # TODO: why another counter here?
-            # for batch_states in states.values(): # TODO: Another for loop here
-            #     for state in batch_states:
-            #         counter.update_merge_freq_tables(state.joined_list)
-            # for state_i in states.values():
-            #     counter.update_merge_freq_tables(state_i.joined_list)
-            counter.update_merge_freq_tables(state.joined_list)
-
-            freq_table = counter.get_global_freq_table()
-            # print(freq_table)
-            if len(freq_table) == 0:
-                break
-
-            pair, freq = counter.get_max_merge_pair().values()
-            # print(pair, freq)
-            if freq < min_freq:
-                break
-            code = self.inverse_vocab.get(pair, None)
-            if code is None:
-                idx = str(len(self.vocab))
-                update_vocab(self.vocab, self.inverse_vocab, pair, idx)
-            else:
-                idx = code
-            # for batch_states in states.values():
-            #     for state in batch_states:
-            #         state.joined_list = merge(state.joined_list, pair, idx)
-                    # print(state.joined_list)
-            state.joined_list = merge(state.joined_list, pair, idx)
-            # TODO: need to convert
-        return
 
     # def encode(self, data, max_shape):
     #     """
