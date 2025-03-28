@@ -104,3 +104,4 @@ class FrequencyCounter:
         self.update_global_freq_table(local_freq_table, len(mixed_list), update_merge_pair=True)
         self.total_count += len(mixed_list)
         return local_freq_table
+
