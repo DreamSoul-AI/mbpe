@@ -10,9 +10,9 @@ if __name__ == "__main__":
     batch_size = 2
     max_workers = 0
     data_name = 0
-    max_code_size = (1, 2, 2)
+    max_codeword_size = (1, 2, 2)
     dim_index = [2, 3, 4]
-    min_freq = {'root': 0.01, 'merge': 0.01, 'entry': 0.005}
+    min_freq = {'root': 0.01, 'merge': 0.01, 'freq_counter': 0.005}
 
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -25,6 +25,6 @@ if __name__ == "__main__":
     dataset = Subset(dataset, indices)
 
 
-    tokenizer = mbpe.tokenizer.Tokenizer(batch_size=batch_size, max_workers=max_workers)
-    tokenizer.train(dataset, data_name, max_code_size, dim_index, min_freq)
+    tokenizer = mbpe.tokenizer.Tokenizer(min_freq, batch_size=batch_size, max_workers=max_workers)
+    tokenizer.train(dataset, data_name, max_codeword_size, dim_index)
     print('vocabulary:', tokenizer.vocab)

@@ -1,24 +1,44 @@
 class State:
-    def __init__(self, data, code_size, tuple_list=None, tuple_indices=None, code_list=None, code_indices=None,
-                 joined_list=None):
+    def __init__(self, data, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None,
+                 joined=None):
         self.data = data
         self.dtype = data.dtype
         self.size = list(data.size())
-        self.code_size = code_size
 
-        self.tuple_list = tuple_list if tuple_list is not None else []
-        self.tuple_indices = tuple_indices if tuple_indices is not None else []
-        self.code_list = code_list if code_list is not None else []
-        self.code_indices = code_indices if code_indices is not None else []
-        self.joined_list = joined_list if joined_list is not None else []
+        self.symbols = symbols if symbols is not None else []
+        self.symbol_indices = symbol_indices if symbol_indices is not None else []
+        self.codewords = codewords if codewords is not None else []
+        self.codeword_indices = codeword_indices if codeword_indices is not None else []
+        self.joined = joined if joined is not None else []
+
+    def update(self, data=None, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None, joined=None):
+        if data is not None:
+            self.data = data
+            self.dtype = data.dtype
+            self.size = list(data.size())
+
+        if symbols is not None:
+            self.symbols = symbols
+
+        if symbol_indices is not None:
+            self.symbol_indices = symbol_indices
+
+        if codewords is not None:
+            self.codewords = codewords
+
+        if codeword_indices is not None:
+            self.codeword_indices = codeword_indices
+
+        if joined is not None:
+            self.joined = joined
+        return
 
     def __repr__(self):
         return (f"State(\n"
                 f"  data=dtype({self.dtype}), size={self.size},\n"
-                f"  code_size={self.code_size},\n"
-                f"  tuple_list={self.tuple_list},\n"
-                f"  tuple_indices={self.tuple_indices},\n"
-                f"  code_list={self.code_list},\n"
-                f"  code_indices={self.code_indices},\n"
-                f"  joined_list={self.joined_list}\n"
+                f"  tuple_list={self.symbols},\n"
+                f"  tuple_indices={self.symbol_indices},\n"
+                f"  code_list={self.codewords},\n"
+                f"  code_indices={self.codeword_indices},\n"
+                f"  joined_list={self.joined}\n"
                 f")")

@@ -1,114 +1,145 @@
-import concurrent.futures
 import threading
 import torch
 from torch.utils.data import DataLoader
 from concurrent.futures import ThreadPoolExecutor
-from .frequency_counter import FrequencyCounter
 from .utils import *
 from .patch import *
 from .state import State
+from .frequency_counter import FrequencyCounter
+from .vocab import Vocab
 
 
-class BaseTokenizer:
-    def __init__(self):
-        self.vocab = dict()  # TODO: make it into one dictionary
-        self.inverse_vocab = dict()
+# class BaseTokenizer:
+#     def __init__(self):
+#         self.vocab = dict()  # TODO: make it into one dictionary
+#         self.inverse_vocab = dict()
+#
+#     def __len__(self):
+#         return len(self.vocab)
+#
+#     def train(self, **kwargs):
+#         raise NotImplementedError
+#
+#     def encode(self, **kwargs):
+#         raise NotImplementedError
+#
+#     def decode(self, **kwargs):
+#         raise NotImplementedError
 
-    def __len__(self):
-        return len(self.vocab)
 
-    def train(self, **kwargs):
-        raise NotImplementedError
-
-    def encode(self, **kwargs):
-        raise NotImplementedError
-
-    def decode(self, **kwargs):
-        raise NotImplementedError
-
-
-class Tokenizer(BaseTokenizer):
-    def __init__(self, batch_size=1, max_workers=None):
+class Tokenizer:
+    def __init__(self, min_freq, batch_size=1, max_workers=None):
         super().__init__()
+        self.vocab = Vocab()
+        self.freq_counter = FrequencyCounter(min_freq)
         self.batch_size = batch_size
         self.max_workers = max_workers
         self._lock = threading.Lock()
 
     @torch.no_grad()
-    def train(self, dataset, data_name, max_code_size, dim_index, min_freq):
+    def train(self, dataset, data_name, max_codeword_size, dim_index):
+        codeword_sizes = find_tuple_shapes(max_codeword_size)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-        code_sizes = find_tuple_shapes(max_code_size)
-        print('Found Code Sizes:{}'.format(code_sizes))
+        print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
-        freq_counters = {}
         # TODO: rewrite (working)
-        for m, code_size in enumerate(code_sizes):
-            patchify = Patchify(code_size, dim_index)
+        for m, codeword_size in enumerate(codeword_sizes):
+            patchify = Patchify(codeword_size, dim_index)
+            is_last = m == len(codeword_sizes) - 1
             index_tracker = 0
-            freq_counters[code_size] = FrequencyCounter(min_freq)
+            # freq_counters[tuple(code_size)] = FrequencyCounter(min_freq)
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
                 for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
                     print(i)
                     data_i = data[i]
                     if index_tracker not in states:
-                        states[index_tracker] = State(data_i, code_size)
+                        states[index_tracker] = State(data_i)
                     # state_i = states[index_tracker]
                     # state_i.code_size = code_size
                     # patch_data = patchify(state_i.data, is_batch=False)
                     # freq_counter.update_freq_tables(patch_data, self.vocab, self.inverse_vocab)
-                    is_last = m == len(code_sizes) - 1
-                    states[index_tracker] = self.process_root(states[index_tracker], patchify, is_last)
+                    states[index_tracker] = self.make_root(states[index_tracker], patchify, is_last)
+                    exit()
                     # updated_state = self.process_root(state_i, patchify, is_last)
                     # if updated_state is not None:  # TODO: do we need?
                     #     states[index_tracker] = updated_state
-                    self._merge_pairs(states[index_tracker], min_freq, min_entrance_freq)
+
+                    self.merge_pair(states[index_tracker], min_freq, min_entrance_freq)
                     print(states[index_tracker])
-            # Merge pairs
-            # self._merge_pairs(states, min_freq, min_entrance_freq)  # merge with loop before # TODO: create freq outside
+                    index_tracker += 1
         return
 
-    def process_root(self, state, patchify, is_last):
-        if len(state.joined_list) > 0:  # TODO: this should be moved to merge
-            scale_factor = patchify.get_scale_factor(state.size)
-            tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
-            if len(tuple_list) > 0:
-                state.size[0] = len(tuple_list)  # Update the length dimension
-                state.data = tuple_to_tensor(tuple_list, state.code_size, state.size, state.dtype, is_batch=False)
-                state.tuple_list = tuple_list
-                state.tuple_indices = tuple_indices
-                state.code_list = code_list
-                state.code_indices = code_indices
-        else:  # TODO: this only runs for the first shape, when the joined list not exist?
-            unshuffled_data = patchify(state.data, is_batch=False)
-            state.size = list(unshuffled_data.size())  # TODO: duplicate
-            # TODO: this could be run initialily
-            tuple_list = tensor_to_tuple(unshuffled_data, state.code_size, is_batch=False)
-            code_mapping = torch.full((unshuffled_data.size(0),), -1, dtype=torch.long)
-            for i, tup in enumerate(tuple_list):
-                code = self.inverse_vocab.get(tup, None)
-                if code is not None:
-                    code_mapping[i] = int(code)  # TODO: need min freq here
-                else:
-                    if is_last:
-                        code_mapping[i] = len(self.vocab)
-                        update_vocab(self.vocab, self.inverse_vocab, tup, len(self.vocab))
-            non_root_indices = torch.where(code_mapping == -1)[0]
-            root_indices = torch.where(code_mapping != -1)[0]
-            root_codes = code_mapping[root_indices].tolist()
-            state.data = unshuffled_data[non_root_indices]
-            state.code_list.extend(list(map(str, root_codes)))
-            if len(state.tuple_indices) > 0:
-                root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
-                non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
-            else:
-                root_indices = root_indices.tolist()
-                non_root_indices = non_root_indices.tolist()
-            state.tuple_indices = non_root_indices
-            state.code_indices.extend(root_indices)
-            tuple_list = tensor_to_tuple(state.data, state.code_size, is_batch=False)
-            # TODO: has bug
-            state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
+    def make_root(self, state, patchify, is_last):
+        # if len(state.joined_list) > 0:  # TODO: this should be moved to merge
+        #     scale_factor = patchify.get_scale_factor(state.size)
+        #     tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
+        #     if len(tuple_list) > 0:
+        #         state.size[0] = len(tuple_list)  # Update the length dimension
+        #         state.data = tuple_to_tensor(tuple_list, state.code_size, state.size, state.dtype, is_batch=False)
+        #         state.tuple_list = tuple_list
+        #         state.tuple_indices = tuple_indices
+        #         state.code_list = code_list
+        #         state.code_indices = code_indices
+        # else:  # TODO: this only runs for the first shape, when the joined list not exist?
+        # TODO: this could be run initialily
+
+        codeword_size = patchify.patch_size
+        unshuffled_data = patchify(state.data, is_batch=False)
+        symbols = tensor_to_tuple(unshuffled_data, codeword_size, is_batch=False)
+        self.freq_counter.update(symbols)
+        root_symbols, root_indices, non_root_symbols, non_root_indices = self.freq_counter.filter_symbols(symbols)
+        codewords = self.vocab.update(root_symbols)
+        non_root_data = unshuffled_data[non_root_indices]
+        state.update(data=non_root_data, symbols=root_symbols, symbol_indices=root_indices, codewords=codewords,
+                     codeword_indices=non_root_indices) # TODO: check join
+
+        # print(codewords)
+        # # print(non_root_data)
+        # exit()
+
+
+
+        # TODO: update state
+        # state.size = list(unshuffled_data.size())
+
+        # code = torch.full((unshuffled_data.size(0),), -1, dtype=torch.long)
+        # code[freqs > freq_counter.min_freq] = -1
+        # print(freqs)
+        # for i, symbol in enumerate(symbols):
+        #     # code = self.inverse_vocab.get(tup, None)
+        #     if symbol in self.vocab['symbol']:
+        #         code[i] = int(self.vocab['symbol'][symbol])
+        #     # if code is not None:
+        #     #     code_mapping[i] = int(code)
+        #     else:
+        #         # TODO: need min freq here
+        #         if is_last or is_:
+        #             code_mapping[i] = len(self.vocab)
+        #             update_vocab(self.vocab, self.inverse_vocab, tup, len(self.vocab))
+        # non_root_indices = torch.where(code_mapping == -1)[0]
+        # root_indices = torch.where(code_mapping != -1)[0]
+        #
+        # state.data = unshuffled_data[non_root_indices]
+        # root_codes = code_mapping[root_indices].tolist()
+        # state.code_list.extend(list(map(str, root_codes)))
+        #
+        #
+        #
+        #
+        #
+        # if len(state.tuple_indices) > 0:
+        #     root_indices = torch.tensor(state.tuple_indices)[root_indices].tolist()
+        #     non_root_indices = torch.tensor(state.tuple_indices)[non_root_indices].tolist()
+        # else:
+        #     root_indices = root_indices.tolist()
+        #     non_root_indices = non_root_indices.tolist()
+        # state.code_indices.extend(root_indices)
+        # state.tuple_indices = non_root_indices
+        #
+        # tuple_list = tensor_to_tuple(state.data, state.code_size, is_batch=False)
+        # # TODO: has bug
+        # state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
         return state
 
     def _merge_pairs(self, state, min_freq, min_entrance_freq):
