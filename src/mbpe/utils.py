@@ -22,45 +22,7 @@ class AddSequenceDim:
         return x.unsqueeze(self.dim)
 
 
-def find_tuple_shapes(dim):
-    """
-    Find all possible shapes of tuples based on the given dimensions.
-
-    Args:
-        dim (tuple): A tuple of dimensions.
-
-    Returns:
-        shapes: A list of tuples representing all possible shapes.
-    """
-
-    # Find divisors for each dimension in desceding order
-    # Each smaller divisor must also be divisible by the previous larger divisor
-    # e.g. (2, 2) -> (2, 2), (1, 2), (1, 1); (6, 2) -> (6, 2), (3, 2), (1, 2), (1, 1)
-    dim = list(dim)
-    divisors = []
-    for d in dim:
-        tmp = []
-        new_divisor = d
-        for i in range(d - 1, 0, -1):
-            if d % i == 0 and new_divisor % i == 0:
-                tmp.append(i)
-                new_divisor = i
-        divisors.append(tmp)
-
-    # Generate all possible shapes
-    shapes = [dim]
-    current_dim = dim
-    for i, div in enumerate(divisors):
-        for d in div:
-            new_shape = current_dim.copy()
-            new_shape[i] = d
-            current_dim = new_shape
-            shapes.append(new_shape)
-
-    return shapes
-
-
-def tensor_to_tuple(tensor, shapes, is_batch=True):  # TODO: need to rename argument
+def tensor_to_tuple(tensor, shapes, is_batch=True):
     if is_batch:
         reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
         data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
@@ -70,7 +32,7 @@ def tensor_to_tuple(tensor, shapes, is_batch=True):  # TODO: need to rename argu
     return data
 
 
-def tuple_to_tensor(tuple_list, shapes, orig_size, dtype, is_batch=True):  # TODO: need to rename argument
+def tuple_to_tensor(tuple_list, shapes, orig_size, dtype, is_batch=True):
     reshaped_tensor = torch.tensor(tuple_list).to(dtype)
     if is_batch:
         tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes).reshape(orig_size)
@@ -96,97 +58,63 @@ def split(data, scale_factor):
 
     return tuples, tuples_indices, codes, code_indices
 
-
-def join(tuples, tuple_indices, codes, code_indices):
-    total_length = len(tuples) + len(codes)
-    merged = np.empty(total_length, dtype=object)
-    merged[tuple_indices] = np.fromiter(tuples, dtype=object)
-    merged[code_indices] = codes
-    joined_list = list(merged)
-    return joined_list
-
-
-def update_vocab(vocab, inv_vocab, msg, code):
-    if isinstance(msg, tuple):
-        vocab[code] = msg
-        inv_vocab[msg] = code
-    elif isinstance(msg, list) and isinstance(msg, list):
-        if len(msg) != len(code):
-            raise ValueError("Number of pairs must match number of indices")
-        for msg_i, code_i in zip(msg, code):
-            vocab[code_i] = msg_i
-            inv_vocab[msg_i] = code_i
-    else:
-        raise ValueError('Not valid msg and code')
-    return
+# def update_vocab(vocab, inv_vocab, msg, code):
+#     if isinstance(msg, tuple):
+#         vocab[code] = msg
+#         inv_vocab[msg] = code
+#     elif isinstance(msg, list) and isinstance(msg, list):
+#         if len(msg) != len(code):
+#             raise ValueError("Number of pairs must match number of indices")
+#         for msg_i, code_i in zip(msg, code):
+#             vocab[code_i] = msg_i
+#             inv_vocab[msg_i] = code_i
+#     else:
+#         raise ValueError('Not valid msg and code')
+#     return
 
 
-def get_freq_pairs(mixed_list, freq_table=None, n=None):
-    """
-    Computes the frequency of all pairs.
-
-    Args:
-        mixed_list (list): A list of tuples and strings
-
-    Returns:
-        counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
-    """
-
-    counts = defaultdict(int)
-    for i in range(len(mixed_list) - 1):
-        pair = (mixed_list[i], mixed_list[i + 1])
-        counts[pair] += 1
-    if freq_table is not None:
-        if n is None:
-            raise ValueError("n must be provided if freq_table is not None")
-        for key, value in counts.items():
-            if key in freq_table:
-                freq_table[key] += value
-            elif value >= n:
-                freq_table[key] = value
-        return freq_table
-    return counts
-
-
-def get_max_pair(pairs):
-    """
-    Finds the pair with the highest frequency in a dictionary of pairs and their frequencies.
-
-    Args:
-        pairs (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies.
-
-    Returns:
-        max_pair (tuple): The pair with the highest frequency.
-        freq (int): The frequency of the best pair.
-    """
-
-    max_pair = max(pairs, key=pairs.get)
-    freq = pairs[max_pair]
-    return max_pair, freq
+# def get_freq_pairs(mixed_list, freq_table=None, n=None):
+#     """
+#     Computes the frequency of all pairs.
+#
+#     Args:
+#         mixed_list (list): A list of tuples and strings
+#
+#     Returns:
+#         counts (defaultdict): A dictionary where keys are pairs and values are their frequencies
+#     """
+#
+#     counts = defaultdict(int)
+#     for i in range(len(mixed_list) - 1):
+#         pair = (mixed_list[i], mixed_list[i + 1])
+#         counts[pair] += 1
+#     if freq_table is not None:
+#         if n is None:
+#             raise ValueError("n must be provided if freq_table is not None")
+#         for key, value in counts.items():
+#             if key in freq_table:
+#                 freq_table[key] += value
+#             elif value >= n:
+#                 freq_table[key] = value
+#         return freq_table
+#     return counts
 
 
-def merge(tuple_list, vocab, idx):
-    """
-    Args:
-        tuple_list (list): tuples to be merged.
-        vocab (tuple): A pair of integers to be merged.
-        idx (str): The value to replace the merged pair in string type.
-
-    Returns:
-        new_tuple_list: Merged tuple list.
-    """
-
-    new_tuple_list = []
-    i = 0
-    while i < len(tuple_list):
-        if i < len(tuple_list) - 1 and (tuple_list[i], tuple_list[i + 1]) == vocab:
-            new_tuple_list.append(idx)
-            i += 2
-        else:
-            new_tuple_list.append(tuple_list[i])
-            i += 1
-    return new_tuple_list
-
+# def get_max_pair(pairs):
+#     """
+#     Finds the pair with the highest frequency in a dictionary of pairs and their frequencies.
+#
+#     Args:
+#         pairs (defaultdict): A dictionary where keys are pairs of tuples and values are their frequencies.
+#
+#     Returns:
+#         max_pair (tuple): The pair with the highest frequency.
+#         freq (int): The frequency of the best pair.
+#     """
+#
+#     max_pair = max(pairs, key=pairs.get)
+#     freq = pairs[max_pair]
+#     return max_pair, freq
 
 def dfs(tup, vocab):
     """

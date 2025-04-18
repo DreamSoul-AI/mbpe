@@ -15,15 +15,24 @@ class Vocab:
         new_entries = 0
         codewords = []
 
-        for symbol in symbols:
+        if isinstance(symbols, list):
+            for symbol in symbols:
+                if symbol not in self.symbol2codeword:
+                    codeword = str(start_index + new_entries)
+                    self.add(symbol, codeword)
+                    new_entries += 1
+                else:
+                    codeword = self.symbol2codeword[symbol]
+                codewords.append(codeword)
+        else:
+            symbol = symbols
             if symbol not in self.symbol2codeword:
                 codeword = str(start_index + new_entries)
                 self.add(symbol, codeword)
                 new_entries += 1
             else:
                 codeword = self.symbol2codeword[symbol]
-            codewords.append(codeword)
-
+            codewords = codeword
         return codewords
 
     def get_codeword(self, symbol, default=None):
