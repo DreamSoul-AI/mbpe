@@ -11,7 +11,7 @@ if __name__ == "__main__":
     max_workers = 0
     data_name = 0
     max_codeword_size = (1, 2, 2)
-    dim_index = [2, 3, 4]
+    dim_index = [1, 2, 3]
     min_freq = {'root': 0.05, 'merge': 0.05, 'freq_counter': 0.01}
 
     transform = transforms.Compose([

@@ -59,6 +59,8 @@ class Tokenizer:
     @torch.no_grad()
     def train(self, dataset, data_name, max_codeword_size, dim_index):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        print(codeword_sizes)
+        print(dim_index)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
@@ -75,10 +77,10 @@ class Tokenizer:
                     if index_tracker not in states:
                         states[index_tracker] = State(data_i)
                     states[index_tracker] = self.make_root(states[index_tracker], patchify, is_last)
-                    self.merge_pair(states[index_tracker])
-                    exit()
+                    self.merge_pair(states[index_tracker], patchify)
                     print(states[index_tracker])
                     index_tracker += 1
+                exit()
         return
 
     def make_root(self, state, patchify, is_last):
@@ -106,10 +108,6 @@ class Tokenizer:
         joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
         state.update(data=non_root_data, symbols=non_root_symbols, symbol_indices=non_root_symbol_indices,
                      codewords=codewords, codeword_indices=root_symbol_indices, joined=joined)
-        # print(state)
-        # exit()
-
-
         # TODO: update state
         # state.size = list(unshuffled_data.size())
 
@@ -152,7 +150,7 @@ class Tokenizer:
         # state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
         return state
 
-    def merge_pair(self, state):
+    def merge_pair(self, state, patchify):
         while True:
             # counter = FrequencyCounter(min_entrance_freq)  # TODO: why another counter here?
             # # for batch_states in states.values(): # TODO: Another for loop here
@@ -179,10 +177,38 @@ class Tokenizer:
             freqs = self.freq_counter.get_freqs(pairs)
             max_idx = np.argmax(freqs)
             max_pair, max_freq = pairs[max_idx], freqs[max_idx]
+            print(max_pair)
             if max_freq < self.freq_counter.min_freq['merge']:
                 break
             codeword = self.vocab.update(max_pair)
-            state.merge_symbol(state.joined, max_pair, codeword)
+            print(codeword)
+            joined = state.merge_symbol(state.joined, max_pair, codeword)
+            print(joined)
+            scale_factor = patchify.get_scale_factor(state.size)
+            print('a', scale_factor, state.size)
+
+            symbols = []
+            symbol_indices = []
+            codewords = []
+            codeword_indices = []
+            for i, item in enumerate(joined):
+                # base_offset = len(tuples) * scale_factor + len(codes)
+                if isinstance(item, tuple):
+                    symbols.append(item)
+                    symbol_indices.append(i)
+                    # tuples_indices.extend(range(base_offset, base_offset + scale_factor))
+                else:
+                    codewords.append(item)
+                    codeword_indices.append(i)
+                    # codes.append(item)
+                    # code_indices.append(base_offset)
+            data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
+            state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
+                         codewords=codewords, codeword_indices=codeword_indices, joined=joined)
+            # print(data)
+            # tuple_list, tuple_indices, code_list, code_indices = split(new_symbols, scale_factor)
+            # print(new_symbols)
+            # exit()
             # TODO: need to update all including joined and others
             # tuple_list, tuple_indices, code_list, code_indices = split(state.joined_list, scale_factor)
             #     if len(tuple_list) > 0:
@@ -193,7 +219,7 @@ class Tokenizer:
             #         state.code_list = code_list
             #         state.code_indices = code_indices
 
-            exit()
+            # exit()
             # code = self.inverse_vocab.get(pair, None)
             # if codeword is None:
             #     idx = str(len(self.vocab))

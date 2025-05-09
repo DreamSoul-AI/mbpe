@@ -12,15 +12,16 @@ class Patchify(nn.Module):
         super(Patchify, self).__init__()
         self.patch_size = patch_size
         self.dim_index = dim_index
+        print(dim_index, patch_size)
 
-    def get_scale_factor(self, orig_size):
+    def get_scale_factor(self, size):
         """
         Computes the scale factor for downscaling based on the patch size.
-        :param orig_size: Original size of the tensor.
+        :param size: Original size of the tensor.
         :return: Scale factor.
         """
         for i, dim in enumerate(self.dim_index):
-            factor = orig_size[dim] // self.patch_size[i]
+            factor = size[dim] // self.patch_size[i]
             if factor != 1:
                 return factor
         return 1
@@ -33,11 +34,14 @@ class Patchify(nn.Module):
         """
         if not is_batch:
             x = x.unsqueeze(0)
+            dim_index = [idx + 1 for idx in self.dim_index]
+        else:
+            dim_index = self.dim_index
         # Dynamically calculate downscale factor
         downscale_factor = [
-            x.shape[self.dim_index[i]] // self.patch_size[i] for i in range(len(self.dim_index))
+            x.shape[dim_index[i]] // self.patch_size[i] for i in range(len(dim_index))
         ]
-        x = self._tensor_unshuffle(x, downscale_factor, self.dim_index)
+        x = self._tensor_unshuffle(x, downscale_factor, dim_index)
         if not is_batch:
             x = x.squeeze(0)
         return x
@@ -84,10 +88,13 @@ class Reconstruct(nn.Module):
         """
         if not is_batch:
             x = x.unsqueeze(0)
+            dim_index = [idx + 1 for idx in self.dim_index]
+        else:
+            dim_index = self.dim_index
         upscale_factor = [
-            self.data_size[self.dim_index[i]] // x.shape[-len(self.dim_index):][i] for i in range(len(self.dim_index))
+            self.data_size[dim_index[i]] // x.shape[-len(dim_index):][i] for i in range(len(dim_index))
         ]
-        x = self._tensor_shuffle(x, upscale_factor, self.dim_index)
+        x = self._tensor_shuffle(x, upscale_factor, dim_index)
         if not is_batch:
             x = x.squeeze(0)
         return x

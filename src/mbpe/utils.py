@@ -25,19 +25,21 @@ class AddSequenceDim:
 def tensor_to_tuple(tensor, shapes, is_batch=True):
     if is_batch:
         reshaped_tensor = tensor.numpy().reshape(tensor.size(0), -1, np.prod(shapes))
-        data = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
+        tuples = [list(map(tuple, sub_tensor)) for sub_tensor in reshaped_tensor]
     else:
         reshaped_tensor = tensor.numpy().reshape(-1, np.prod(shapes))
-        data = list(map(tuple, reshaped_tensor))
-    return data
+        tuples = list(map(tuple, reshaped_tensor))
+    return tuples
 
 
-def tuple_to_tensor(tuple_list, shapes, orig_size, dtype, is_batch=True):
-    reshaped_tensor = torch.tensor(tuple_list).to(dtype)
+def tuple_to_tensor(tuples, shapes, dtype, is_batch=True):
+    reshaped_tensor = torch.tensor(tuples).to(dtype)
+    print(reshaped_tensor.size(), shapes)
     if is_batch:
-        tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes).reshape(orig_size)
+        tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes[1:])
     else:
-        tensor = reshaped_tensor.reshape(-1, *shapes).reshape(orig_size)
+        tensor = reshaped_tensor.reshape(-1, *shapes[1:])
+    print(tensor.size())
     return tensor
 
 
