@@ -48,4 +48,10 @@ class Vocab:
         return len(self.symbol2codeword)
 
     def __repr__(self):
-        return f"Vocab({len(self)} entries)"
+        num_entries = len(self)
+        preview_limit = 20
+        preview = list(self.symbol2codeword.items())[:preview_limit]
+        preview_str = ", ".join(f"{repr(k)}: {repr(v)}" for k, v in preview)
+        if num_entries > preview_limit:
+            preview_str += ", ..."
+        return f"Vocab({num_entries} entries: {{{preview_str}}})"

@@ -60,7 +60,6 @@ class Tokenizer:
     def train(self, dataset, data_name, max_codeword_size, dim_index):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         print(codeword_sizes)
-        print(dim_index)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
@@ -68,19 +67,21 @@ class Tokenizer:
         for m, codeword_size in enumerate(codeword_sizes):
             patchify = Patchify(codeword_size, dim_index)
             is_last = m == len(codeword_sizes) - 1
+            print(codeword_size, is_last)
             index_tracker = 0
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
                 for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
-                    print(i)
+                    print('data', i)
                     data_i = data[i]
                     if index_tracker not in states:
                         states[index_tracker] = State(data_i)
                     states[index_tracker] = self.make_root(states[index_tracker], patchify, is_last)
-                    self.merge_pair(states[index_tracker], patchify)
+                    self.merge_pair(states[index_tracker])
                     print(states[index_tracker])
+                    print(self.vocab)
+                    print(self.freq_counter)
                     index_tracker += 1
-                exit()
         return
 
     def make_root(self, state, patchify, is_last):
@@ -101,8 +102,9 @@ class Tokenizer:
         unshuffled_data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(unshuffled_data, codeword_size, is_batch=False)
         self.freq_counter.update(symbols, is_last)
+        threshold = None if is_last else self.freq_counter.min_freq['root']
         root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
-            self.freq_counter.filter_symbols(symbols, self.freq_counter.min_freq['root'])
+            self.freq_counter.filter_symbols(symbols, threshold)
         codewords = self.vocab.update(root_symbols)
         non_root_data = unshuffled_data[non_root_symbol_indices]
         joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
@@ -150,7 +152,7 @@ class Tokenizer:
         # state.joined_list = join(tuple_list, state.tuple_indices, state.code_list, state.code_indices)
         return state
 
-    def merge_pair(self, state, patchify):
+    def merge_pair(self, state):
         while True:
             # counter = FrequencyCounter(min_entrance_freq)  # TODO: why another counter here?
             # # for batch_states in states.values(): # TODO: Another for loop here
@@ -177,15 +179,15 @@ class Tokenizer:
             freqs = self.freq_counter.get_freqs(pairs)
             max_idx = np.argmax(freqs)
             max_pair, max_freq = pairs[max_idx], freqs[max_idx]
-            print(max_pair)
+            # print(max_pair)
             if max_freq < self.freq_counter.min_freq['merge']:
                 break
             codeword = self.vocab.update(max_pair)
-            print(codeword)
+            # print(codeword)
             joined = state.merge_symbol(state.joined, max_pair, codeword)
-            print(joined)
-            scale_factor = patchify.get_scale_factor(state.size)
-            print('a', scale_factor, state.size)
+            # print(joined)
+            # scale_factor = patchify.get_scale_factor(state.size)
+            # print('a', scale_factor, state.size)
 
             symbols = []
             symbol_indices = []

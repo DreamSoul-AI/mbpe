@@ -12,7 +12,6 @@ class Patchify(nn.Module):
         super(Patchify, self).__init__()
         self.patch_size = patch_size
         self.dim_index = dim_index
-        print(dim_index, patch_size)
 
     def get_scale_factor(self, size):
         """

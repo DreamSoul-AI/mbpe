@@ -34,12 +34,10 @@ def tensor_to_tuple(tensor, shapes, is_batch=True):
 
 def tuple_to_tensor(tuples, shapes, dtype, is_batch=True):
     reshaped_tensor = torch.tensor(tuples).to(dtype)
-    print(reshaped_tensor.size(), shapes)
     if is_batch:
         tensor = reshaped_tensor.reshape(reshaped_tensor.size(0), -1, *shapes[1:])
     else:
         tensor = reshaped_tensor.reshape(-1, *shapes[1:])
-    print(tensor.size())
     return tensor
 
 

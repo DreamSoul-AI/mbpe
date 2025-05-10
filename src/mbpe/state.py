@@ -64,11 +64,13 @@ class State:
         return new_symbols
 
     def __repr__(self):
-        return (f"State(\n"
-                f"  data=dtype({self.dtype}), size={self.size},\n"
-                f"  symbols={self.symbols},\n"
-                f"  symbol_indices={self.symbol_indices},\n"
-                f"  codewords={self.codewords},\n"
-                f"  codeword_indices={self.codeword_indices},\n"
-                f"  joined={self.joined}\n"
-                f")")
+        return (
+            f"State(\n"
+            f"  data=Tensor(dtype={self.dtype}, size={self.size}),\n"
+            f"  symbols={repr(self.symbols)},\n"
+            f"  symbol_indices={repr(self.symbol_indices)},\n"
+            f"  codewords={repr(self.codewords)},\n"
+            f"  codeword_indices={repr(self.codeword_indices)},\n"
+            f"  joined={repr(self.joined)}\n"
+            f")"
+        )

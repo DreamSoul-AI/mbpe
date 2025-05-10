@@ -26,14 +26,8 @@ class FrequencyCounter:
         return freqs
 
     def update(self, symbols, is_last=False):
-        # symbol_tensors = torch.tensor(symbols)
-        # unique_symbols, counts = torch.unique(symbol_tensors, sorted=False, return_counts=True, dim=0)
-        # symbol_tensors = np.array(symbols)
-        # print(symbol_tensors)
-        # unique_symbols, counts = np.unique(symbol_tensors, return_counts=True, axis=0)
         counter = Counter(symbols)
         self.total_count += len(symbols)
-        # for symbol, count in zip(symbols, counts):
         for symbol, count in counter.items():
             if symbol not in self.count_table:
                 if count / len(symbols) >= self.min_freq['freq_counter'] or is_last:
@@ -63,6 +57,17 @@ class FrequencyCounter:
                     out_symbols.append(symbol)
                     out_indices.append(idx)
         return in_symbols, in_indices, out_symbols, out_indices
+
+    def __repr__(self):
+        num_entries = len(self.count_table)
+        preview_limit = 20
+        sorted_items = sorted(self.count_table.items(), key=lambda x: -x[1])
+        preview = sorted_items[:preview_limit]
+        preview_str = ", ".join(f"{repr(k)}: {v}" for k, v in preview)
+        if num_entries > preview_limit:
+            preview_str += ", ..."
+        return (f"FrequencyCounter(min_freq={self.min_freq}, total_count={self.total_count}, "
+                f"{num_entries} symbols: {{{preview_str}}})")
 
         # self.min_entrance_freq = min_entrance_freq
         # self.min_root_freq = min_root_freq  # Minimum frequency threshold for root vocabulary
