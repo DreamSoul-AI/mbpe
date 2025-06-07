@@ -58,26 +58,46 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
-def dfs(tup, vocab):
+def dfs(token, vocab):
     """
-    Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
+    Recursively decode a codeword (str) into a flat tuple of integers.
+    Handles base tuples and recursive merges without sanity checks.
 
     Args:
-        tup (str): A tuple or a tuple of a pair of tuples.
-        vocab (dict): A dictionary mapping string codes to tuples representing pairs.
+        token (str or tuple): A codeword or base tuple.
+        vocab (dict): Mapping from codeword to symbol/tuple.
 
     Returns:
-        list: A list of decoded elements resulting from the DFS decoding process.
-
+        tuple[int]: Fully flattened tuple of integers.
     """
+    if not isinstance(token, str):
+        if isinstance(token, tuple):
+            return tuple(int(x) for x in token)
+        return (int(token),)
 
-    while any(isinstance(item, str) for item in tup):
-        new_tup = ()
-        for i in tup:
-            if isinstance(i, str):
-                new_tup = new_tup + vocab[i]
-            else:
-                new_tup = new_tup + (i,)
-        tup = new_tup
+    resolved = vocab[token]
+    return tuple(flat for part in resolved for flat in dfs(part, vocab))
 
-    return tup
+# def dfs(tup, vocab):
+#     """
+#     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
+#
+#     Args:
+#         tup (str): A tuple or a tuple of a pair of tuples.
+#         vocab (dict): A dictionary mapping string codes to tuples representing pairs.
+#
+#     Returns:
+#         list: A list of decoded elements resulting from the DFS decoding process.
+#
+#     """
+#
+#     while any(isinstance(item, str) for item in tup):
+#         new_tup = ()
+#         for i in tup:
+#             if isinstance(i, str):
+#                 new_tup = new_tup + vocab[i]
+#             else:
+#                 new_tup = new_tup + (i,)
+#         tup = new_tup
+#
+#     return tup

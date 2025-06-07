@@ -26,9 +26,27 @@ def main():
         indices = list(range(0, num_samples))
         dataset = Subset(dataset, indices)
 
+    sample = dataset[0][data_name]
+    print('sample:', sample)
+
     tokenizer = mbpe.tokenizer.Tokenizer(min_freq, batch_size=batch_size, max_workers=max_workers)
     tokenizer.train(dataset, data_name, max_codeword_size, dim_index)
     print('vocabulary:', tokenizer.vocab)
+
+    sample = dataset[0][data_name]
+    encoded = tokenizer.encode(sample, max_codeword_size=(1, 2, 2), dim_index=dim_index)
+    print("encoded:", encoded)
+
+    decoded = tokenizer.decode(
+        encoded,
+        max_codeword_size=max_codeword_size,
+        dim_index=dim_index,
+        data_shape=sample.shape,
+        data_dtype=sample.dtype
+    )
+
+    print("Decoded shape:", decoded.shape)
+    print("Exact match:", torch.equal(decoded, sample))
     return
 
 
