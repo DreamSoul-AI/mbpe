@@ -7,13 +7,13 @@ from torch.utils.data import Subset
 
 def main():
     torch.manual_seed(1)
-    batch_size = 2
+    batch_size = 1
     max_workers = 0
     data_name = 0
     num_samples = 10
     max_codeword_size = (1, 2, 2)
     dim_index = [1, 2, 3]
-    min_freq = {'root': 0.01, 'merge': 0.01, 'freq_counter': 0.001}
+    min_freq = {'root': 0.01, 'merge': 0.01, 'freq_counter': 0.01}
 
     transform = transforms.Compose([
         transforms.ToTensor(),
