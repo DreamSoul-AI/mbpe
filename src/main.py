@@ -10,7 +10,7 @@ def main():
     batch_size = 1
     max_workers = 0
     data_name = 0
-    num_samples = 10
+    num_samples = 1
     max_codeword_size = (1, 2, 2)
     dim_index = [1, 2, 3]
     min_freq = {'root': 0.01, 'merge': 0.01, 'freq_counter': 0.01}
@@ -34,9 +34,12 @@ def main():
     print('vocabulary:', tokenizer.vocab)
 
     sample = dataset[0][data_name]
+    print(sample.size())
+    exit()
     encoded = tokenizer.encode(sample, max_codeword_size=(1, 2, 2), dim_index=dim_index)
     print("encoded:", encoded)
 
+    exit()
     decoded = tokenizer.decode(
         encoded,
         max_codeword_size=max_codeword_size,

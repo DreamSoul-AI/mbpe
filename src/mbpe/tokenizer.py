@@ -70,7 +70,6 @@ class Tokenizer:
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
                 for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
-                    # print(i)
                     data_i = data[i]
                     if index_tracker not in states:
                         states[index_tracker] = State(data_i)
@@ -82,31 +81,43 @@ class Tokenizer:
                     index_tracker += 1
         return
 
-    def make_root(self, state, patchify, is_last):
+    def make_root(self, state, patchify, is_last, update=True):
         codeword_size = patchify.patch_size
+        print(codeword_size)
         unshuffled_data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(unshuffled_data, codeword_size, is_batch=False)
-        self.freq_counter.update(symbols, is_last)
-        threshold = None if is_last else self.freq_counter.min_freq['root']
-        root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
-            self.freq_counter.filter_symbols(symbols, threshold)
-        codewords = self.vocab.update(root_symbols)
+
+        if update:
+            self.freq_counter.update(symbols, is_last)
+            threshold = None if is_last else self.freq_counter.min_freq['root']
+            root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
+                self.freq_counter.filter_symbols(symbols, threshold)
+            codewords = self.vocab.update(root_symbols)
+        else:
+            # TODO: fix here
+            pass
+
         non_root_data = unshuffled_data[non_root_symbol_indices]
         joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
         state.update(data=non_root_data, symbols=non_root_symbols, symbol_indices=non_root_symbol_indices,
                      codewords=codewords, codeword_indices=root_symbol_indices, joined=joined)
         return state
 
-    def merge_pair(self, state):
+    def merge_pair(self, state, update=True):
         while True:
             pairs = state.merge(state.joined)
-            self.freq_counter.update(pairs)
+            if update:
+                self.freq_counter.update(pairs)
             freqs = self.freq_counter.get_freqs(pairs)
             max_idx = np.argmax(freqs)
             max_pair, max_freq = pairs[max_idx], freqs[max_idx]
-            if max_freq < self.freq_counter.min_freq['merge']:
-                break
-            codeword = self.vocab.update(max_pair)
+            if update:
+                if max_freq < self.freq_counter.min_freq['merge']:
+                    break
+                codeword = self.vocab.update(max_pair)
+            else:
+                # TODO: fix this
+                pass
             joined = state.merge_symbol(state.joined, max_pair, codeword)
 
             symbols = []
@@ -127,120 +138,85 @@ class Tokenizer:
 
     @torch.no_grad()
     def encode(self, data, max_codeword_size, dim_index):
-        """
-        Encode input `data` by applying trained BPE codeword shapes progressively.
-
-        Args:
-            data (torch.Tensor): Input tensor to encode (e.g., shape [1, 28, 28])
-            max_codeword_size (tuple): Maximum patch size per dimension (e.g., (1, 2, 2))
-            dim_index (list[int]): Axes corresponding to patch size (e.g., [1, 2, 3])
-
-        Returns:
-            List: Final encoded stream (mix of codewords and remaining symbols)
-        """
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
-        state = State(data)
-
+        states = {}
         for m, codeword_size in enumerate(codeword_sizes):
             patchify = Patchify(codeword_size, dim_index)
-            # is_last = m == len(codeword_sizes) - 1
+            is_last = m == len(codeword_sizes) - 1
+            index_tracker = 0
+            if index_tracker not in states:
+                states[index_tracker] = State(data)
+            states[index_tracker] = self.make_root(states[index_tracker], patchify, is_last, update=False)
+            states[index_tracker] = self.merge_pair(states[index_tracker], update=False)
+            index_tracker += 1
 
-            # Patch and convert to tuples
-            unshuffled_data = patchify(state.data, is_batch=False)
-            symbols = tensor_to_tuple(unshuffled_data, codeword_size, is_batch=False)
-
-            joined = []
-            for s in symbols:
-                codeword = self.vocab.get_codeword(s)
-                if codeword is not None:
-                    joined.append(codeword)
-                else:
-                    joined.append(s)
-
-
-            # 3. Update state
-            state.update(joined=joined)
-            state = self.merge_pair_encode(state)
-
-            print(state)
-            exit()
-            # # Use thresholding to filter root candidates
-            # threshold = None if is_last else self.freq_counter.min_freq['root']
-            # root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
-            #     self.freq_counter.filter_symbols(symbols, threshold)
-            #
-            # # Lookup codewords from vocab (do not update)
-            # codewords = [self.vocab.get_codeword(sym) for sym in root_symbols]
-            #
-            # # Recombine
-            # non_root_data = unshuffled_data[non_root_symbol_indices]
-            # joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
-            #
-            # # Update state
-            # state.update(data=non_root_data, symbols=non_root_symbols,
-            #              symbol_indices=non_root_symbol_indices,
-            #              codewords=codewords, codeword_indices=root_symbol_indices,
-            #              joined=joined)
-            #
-            # # Merge known pairs using only existing vocab
-            # state = self.merge_pair_encode(state)
+        # """
+        # Encode input `data` by applying trained BPE codeword shapes progressively.
+        #
+        # Args:
+        #     data (torch.Tensor): Input tensor to encode (e.g., shape [1, 28, 28])
+        #     max_codeword_size (tuple): Maximum patch size per dimension (e.g., (1, 2, 2))
+        #     dim_index (list[int]): Axes corresponding to patch size (e.g., [1, 2, 3])
+        #
+        # Returns:
+        #     List: Final encoded stream (mix of codewords and remaining symbols)
+        # """
+        # codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        # state = State(data)
+        #
+        # for m, codeword_size in enumerate(codeword_sizes):
+        #     patchify = Patchify(codeword_size, dim_index)
+        #     # Patch and convert to tuples
+        #     unshuffled_data = patchify(state.data, is_batch=False)
+        #     symbols = tensor_to_tuple(unshuffled_data, codeword_size, is_batch=False)
+        #
+        #     joined = []
+        #     for s in symbols:
+        #         codeword = self.vocab.get_codeword(s)
+        #         if codeword is not None:
+        #             joined.append(codeword)
+        #         else:
+        #             joined.append(s)
+        #
+        #     state.update(joined=joined)
+        #     state = self.merge_pair_encode(state)
 
         return state.joined
 
-    def merge_pair_encode(self, state):
-        while True:
-            # Generate adjacent pairs from the current sequence
-            pairs = state.merge(state.joined)
-            if not pairs:
-                break
-
-            # Get training-time frequencies of those pairs
-            freqs = self.freq_counter.get_freqs(pairs)
-            freqs = np.array(freqs)
-
-            if freqs.max() == 0:
-                break
-
-            # Find the most frequent known pair
-            max_idx = np.argmax(freqs)
-            print(max_idx)
-
-            max_pair = pairs[max_idx]
-            codeword = self.vocab.get_codeword(max_pair)
-
-            if codeword is None:
-                break  # Should not happen if training was consistent
-
-            # Merge this pair in the sequence
-            print(max_pair)
-            joined = state.merge_symbol(state.joined, max_pair, codeword)
-
-            # # Split into symbols and codewords
-            # symbols, symbol_indices = [], []
-            # codewords, codeword_indices = [], []
-            # for i, item in enumerate(joined):
-            #     if isinstance(item, tuple):
-            #         symbols.append(item)
-            #         symbol_indices.append(i)
-            #     else:
-            #         codewords.append(item)
-            #         codeword_indices.append(i)
-
-            # Convert symbols back to tensor (if any remain)
-            # data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False) if symbols else None
-
-            state.update(joined=joined)
-            # Update state
-            # state.update(
-            #     data=data,
-            #     symbols=symbols,
-            #     symbol_indices=symbol_indices,
-            #     codewords=codewords,
-            #     codeword_indices=codeword_indices,
-            #     joined=joined
-            # )
-        print(state.joined)
-        return state
+    # def merge_pair_encode(self, state):
+    #     while True:
+    #         # Generate adjacent pairs from the current sequence
+    #         pairs = state.merge(state.joined)
+    #         if not pairs:
+    #             break
+    #
+    #         # Get training-time frequencies of those pairs
+    #         freqs = self.freq_counter.get_freqs(pairs)
+    #         freqs = np.array(freqs)
+    #
+    #         if freqs.max() == 0:
+    #             break
+    #
+    #         # Find the most frequent known pair
+    #         max_idx = np.argmax(freqs)
+    #
+    #         max_pair = pairs[max_idx]
+    #         codeword = self.vocab.get_codeword(max_pair)
+    #
+    #         if codeword is None:
+    #             break  # Should not happen if training was consistent
+    #
+    #         # Merge this pair in the sequence
+    #         print(state.joined)
+    #         print(len(state.joined))
+    #         print(max_pair)
+    #         joined = state.merge_symbol(state.joined, max_pair, codeword)
+    #         state.update(joined=joined)
+    #         print(state.joined)
+    #         print(len(state.joined))
+    #
+    #     exit()
+    #     return state
 
     @torch.no_grad()
     def decode(self, encoded, max_codeword_size, dim_index, data_shape, data_dtype):
