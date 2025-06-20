@@ -35,7 +35,6 @@ def main():
 
     sample = dataset[0][data_name]
     print(sample.size())
-    exit()
     encoded = tokenizer.encode(sample, max_codeword_size=(1, 2, 2), dim_index=dim_index)
     print("encoded:", encoded)
 

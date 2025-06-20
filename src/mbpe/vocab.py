@@ -35,8 +35,32 @@ class Vocab:
             codewords = codeword
         return codewords
 
+    def filter_symbols(self, symbols):
+        in_symbols = []
+        in_indices = []
+        out_symbols = []
+        out_indices = []
+
+        for idx, symbol in enumerate(symbols):
+            if symbol in self.symbol2codeword:
+                in_symbols.append(symbol)
+                in_indices.append(idx)
+            else:
+                out_symbols.append(symbol)
+                out_indices.append(idx)
+
+        return in_symbols, in_indices, out_symbols, out_indices
+
     def get_codeword(self, symbol, default=None):
         return self.symbol2codeword.get(symbol, default)
+
+    def get_codewords(self, symbols):
+        codewords = []
+        for symbol in symbols:
+            codeword = self.symbol2codeword.get(symbol)
+            if codeword is not None:
+                codewords.append(codeword)
+        return codewords
 
     def get_symbol(self, codeword, default=None):
         return self.codeword2symbol.get(codeword, default)
