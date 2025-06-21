@@ -58,14 +58,13 @@ class Tokenizer:
     @torch.no_grad()
     def train(self, dataset, data_name, max_codeword_size, dim_index):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
-        # print(codeword_sizes)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         # print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
         for m, codeword_size in enumerate(codeword_sizes):
+            codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size, dim_index)
             is_last = m == len(codeword_sizes) - 1
-            # print(codeword_size, is_last)
             index_tracker = 0
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
@@ -74,11 +73,8 @@ class Tokenizer:
                     if index_tracker not in states:
                         states[index_tracker] = State(data_i)
                     states[index_tracker] = self.patchify(states[index_tracker], patchify)
-                    states[index_tracker] = self.make_root(states[index_tracker], is_last)
-                    states[index_tracker] = self.merge_pair(states[index_tracker])
-                    # print(states[index_tracker])
-                    # print(self.vocab)
-                    # print(self.freq_counter)
+                    states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_last)
+                    states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size)
                     index_tracker += 1
         return
 
@@ -92,17 +88,17 @@ class Tokenizer:
         print(state)
         return state
 
-    def make_root(self, state, is_last, update=True):
+    def make_root(self, state, codeword_size, is_last, update=True):
         if update:
             self.freq_counter.update(state.symbols, is_last)
             threshold = None if is_last else self.freq_counter.min_freq['root']
             root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
                 self.freq_counter.filter_symbols(state.symbols, threshold)
-            codewords = self.vocab.update(root_symbols)
+            codewords = self.vocab.update(root_symbols, codeword_size)
         else:
             root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
-                self.vocab.filter_symbols(state.symbols)
-            codewords = self.vocab.get_codewords(root_symbols)
+                self.vocab.filter_symbols(state.symbols, codeword_size)
+            codewords = self.vocab.get_codewords(root_symbols, codeword_size)
 
         non_root_data = state.data[non_root_symbol_indices]
         joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
@@ -110,7 +106,7 @@ class Tokenizer:
                      codewords=codewords, codeword_indices=root_symbol_indices, joined=joined)
         return state
 
-    def merge_pair(self, state, update=True):
+    def merge_pair(self, state, codeword_size, update=True):
         while True:
             pairs = state.merge(state.joined)
             if update:
@@ -121,9 +117,9 @@ class Tokenizer:
             if update:
                 if max_freq < self.freq_counter.min_freq['merge']:
                     break
-                codeword = self.vocab.update(max_pair)
+                codeword = self.vocab.update(max_pair, codeword_size)
             else:
-                codeword = self.vocab.get_codeword(max_pair)
+                codeword = self.vocab.get_codeword(max_pair, codeword_size)
                 if codeword is None:
                     break
             joined = state.merge_symbol(state.joined, max_pair, codeword)
@@ -149,16 +145,16 @@ class Tokenizer:
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         state = State(data)
         for m, codeword_size in enumerate(codeword_sizes):
+            codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size, dim_index)
             is_last = m == len(codeword_sizes) - 1
             state = self.patchify(state, patchify)
-            state = self.make_root(state, is_last, update=False)
-            state = self.merge_pair(state, update=False)
+            state = self.make_root(state, codeword_size, is_last, update=False)
+            state = self.merge_pair(state, codeword_size, update=False)
         return state
 
     @torch.no_grad()
     def decode(self, encoded, max_codeword_size, dim_index, data_shape, data_dtype):
-        # TODO: seems vocab need to split for different size
         """
         Decode a token sequence that was encoded with progressive BPE across multiple shapes.
 
