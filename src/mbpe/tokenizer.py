@@ -59,7 +59,7 @@ class Tokenizer:
     def train(self, dataset, data_name, max_codeword_size, dim_index):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-        # print('Found codeword Sizes:{}'.format(codeword_sizes))
+        print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
         for m, codeword_size in enumerate(codeword_sizes):
             codeword_size = tuple(codeword_size)
@@ -75,17 +75,15 @@ class Tokenizer:
                     states[index_tracker] = self.patchify(states[index_tracker], patchify)
                     states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_last)
                     states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size)
+                    states[index_tracker].compress_indices(codeword_size)
                     index_tracker += 1
         return
 
-    def patchify(self, state, patchify):  # TODO: need to fix indices
+    def patchify(self, state, patchify):
         codeword_size = patchify.patch_size
         data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
-        print('aaaa')
-        print(state)
         state.update(data=data, symbols=symbols)
-        print(state)
         return state
 
     def make_root(self, state, codeword_size, is_last, update=True):
@@ -103,7 +101,8 @@ class Tokenizer:
         non_root_data = state.data[non_root_symbol_indices]
         joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
         state.update(data=non_root_data, symbols=non_root_symbols, symbol_indices=non_root_symbol_indices,
-                     codewords=codewords, codeword_indices=root_symbol_indices, joined=joined)
+                     codewords=codewords, codeword_indices=root_symbol_indices, joined=joined,
+                     codeword_size=codeword_size)
         return state
 
     def merge_pair(self, state, codeword_size, update=True):
@@ -137,7 +136,9 @@ class Tokenizer:
                     codeword_indices.append(i)
             data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
-                         codewords=codewords, codeword_indices=codeword_indices, joined=joined)
+                         codewords=codewords, codeword_indices=codeword_indices, joined=joined,
+                         codeword_size=codeword_size)
+        state.update(joined=[])
         return state
 
     @torch.no_grad()
@@ -151,6 +152,7 @@ class Tokenizer:
             state = self.patchify(state, patchify)
             state = self.make_root(state, codeword_size, is_last, update=False)
             state = self.merge_pair(state, codeword_size, update=False)
+            state.compress_indices(codeword_size)
         return state
 
     @torch.no_grad()

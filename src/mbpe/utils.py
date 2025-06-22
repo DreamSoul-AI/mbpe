@@ -78,6 +78,7 @@ def dfs(token, vocab):
     resolved = vocab[token]
     return tuple(flat for part in resolved for flat in dfs(part, vocab))
 
+
 # def dfs(tup, vocab):
 #     """
 #     Perform a depth-first search (DFS) to decode a pair recursively using the provided vocabulary.
@@ -101,3 +102,33 @@ def dfs(token, vocab):
 #         tup = new_tup
 #
 #     return tup
+
+
+def compress_indices(indices):  # TODO: need better compression
+    if not indices:
+        return []
+
+    indices = sorted(indices)
+    compressed = []
+    start = prev = indices[0]
+
+    for i in indices[1:]:
+        if i == prev + 1:
+            prev = i
+        else:
+            compressed.append(start if start == prev else (start, prev))
+            start = prev = i
+
+    compressed.append(start if start == prev else (start, prev))
+    return compressed
+
+
+def decompress_indices(compressed):
+    result = []
+    for item in compressed:
+        if isinstance(item, int):
+            result.append(item)
+        else:
+            start, end = item
+            result.extend(range(start, end + 1))
+    return result
