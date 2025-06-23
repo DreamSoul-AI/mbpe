@@ -75,7 +75,7 @@ class Tokenizer:
                     states[index_tracker] = self.patchify(states[index_tracker], patchify)
                     states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_last)
                     states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size)
-                    states[index_tracker].compress_indices(codeword_size)
+                    # states[index_tracker].compress_indices(codeword_size)
                     index_tracker += 1
         return
 
@@ -98,14 +98,17 @@ class Tokenizer:
                 self.vocab.filter_symbols(state.symbols, codeword_size)
             codewords = self.vocab.get_codewords(root_symbols, codeword_size)
 
-        non_root_data = state.data[non_root_symbol_indices]
-        joined = state.join(non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices)
-        state.update(data=non_root_data, symbols=non_root_symbols, symbol_indices=non_root_symbol_indices,
-                     codewords=codewords, codeword_indices=root_symbol_indices, joined=joined,
+        data = state.data[non_root_symbol_indices]
+        symbols, symbol_indices, codewords, codeword_indices = \
+            non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices
+        joined = state.join(symbols, symbol_indices, codewords, codeword_indices)
+        state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
+                     codewords=codewords, codeword_indices=codeword_indices, joined=joined,
                      codeword_size=codeword_size)
         return state
 
     def merge_pair(self, state, codeword_size, update=True):
+        # TODO: need to make sure the elements in pair also in vocab
         while True:
             pairs = state.merge(state.joined)
             if update:
@@ -119,6 +122,7 @@ class Tokenizer:
                 codeword = self.vocab.update(max_pair, codeword_size)
             else:
                 codeword = self.vocab.get_codeword(max_pair, codeword_size)
+                print('merged', max_pair, codeword)
                 if codeword is None:
                     break
             joined = state.merge_symbol(state.joined, max_pair, codeword)
@@ -152,47 +156,25 @@ class Tokenizer:
             state = self.patchify(state, patchify)
             state = self.make_root(state, codeword_size, is_last, update=False)
             state = self.merge_pair(state, codeword_size, update=False)
-            state.compress_indices(codeword_size)
+            # state.compress_indices(codeword_size)
         return state
 
     @torch.no_grad()
-    def decode(self, encoded, max_codeword_size, dim_index, data_shape, data_dtype):
-        """
-        Decode a token sequence that was encoded with progressive BPE across multiple shapes.
-
-        Args:
-            encoded (List[str or tuple]): Encoded stream (mix of codewords and symbols)
-            max_codeword_size (Tuple[int]): Final codeword size used during encoding (e.g. (1, 2, 2))
-            dim_index (List[int]): Axes that codeword sizes applied to (e.g. [1, 2, 3])
-            data_shape (Tuple[int]): Final desired tensor shape
-            data_dtype (torch.dtype): Final desired tensor dtype
-
-        Returns:
-            torch.Tensor: Fully decoded tensor
-        """
-        codeword_shapes = self.find_tuple_shapes(max_codeword_size)
-        codeword_to_symbol = self.vocab.codeword2symbol
-        state = encoded
-
-        for codeword_size in reversed(codeword_shapes):
-            # 1. Recursively resolve each token
-            resolved = [
-                dfs(token, codeword_to_symbol) if isinstance(token, str) else token
-                for token in state
-            ]
+    def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
+        codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        for codeword_size in reversed(codeword_sizes):
+            codeword_size = tuple(codeword_size)
             print(codeword_size)
-            print(resolved)
+            patchify = Reconstruct(codeword_size, dim_index)
+            # state.decompress_indices(codeword_size)
+            print(len(state.codewords))
+            symbols = self.vocab.get_symbols(state.codewords)
+            print(symbols)
             exit()
-            # 2. Convert flat list of tuples into a patch tensor
-            patch_tensor = tuple_to_tensor(
-                resolved,
-                shapes=codeword_size,
-                dtype=data_dtype,
-                is_batch=False
-            )
 
-            # 3. Unpatchify to reconstruct the original tensor layout
-            unpatchify = Patchify(codeword_size, dim_index)
-            state = unpatchify.unpatch(patch_tensor, is_batch=False)
 
-        return state.view(data_shape).to(dtype=data_dtype)
+            joined = state.join(state.symbols, state.symbol_indices[codeword_size],
+                                state.codewords, state.codeword_indices[codeword_size])
+            print(joined)
+            exit()
+        return state

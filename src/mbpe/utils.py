@@ -57,26 +57,26 @@ def split(data, scale_factor):
 
     return tuples, tuples_indices, codes, code_indices
 
-
-def dfs(token, vocab):
-    """
-    Recursively decode a codeword (str) into a flat tuple of integers.
-    Handles base tuples and recursive merges without sanity checks.
-
-    Args:
-        token (str or tuple): A codeword or base tuple.
-        vocab (dict): Mapping from codeword to symbol/tuple.
-
-    Returns:
-        tuple[int]: Fully flattened tuple of integers.
-    """
-    if not isinstance(token, str):
-        if isinstance(token, tuple):
-            return tuple(int(x) for x in token)
-        return (int(token),)
-
-    resolved = vocab[token]
-    return tuple(flat for part in resolved for flat in dfs(part, vocab))
+#
+# def dfs(token, vocab):
+#     """
+#     Recursively decode a codeword (str) into a flat tuple of integers.
+#     Handles base tuples and recursive merges without sanity checks.
+#
+#     Args:
+#         token (str or tuple): A codeword or base tuple.
+#         vocab (dict): Mapping from codeword to symbol/tuple.
+#
+#     Returns:
+#         tuple[int]: Fully flattened tuple of integers.
+#     """
+#     if not isinstance(token, str):
+#         if isinstance(token, tuple):
+#             return tuple(int(x) for x in token)
+#         return (int(token),)
+#
+#     resolved = vocab[token]
+#     return tuple(flat for part in resolved for flat in dfs(part, vocab))
 
 
 # def dfs(tup, vocab):
@@ -104,7 +104,28 @@ def dfs(token, vocab):
 #     return tup
 
 
-def compress_indices(indices):  # TODO: need better compression
+def dfs(token, vocab, default=None):
+    """
+    Recursively decode a codeword (str or tuple) into a flat tuple of integers.
+
+    Args:
+        token (str | tuple | int): A codeword (string), or base-level tuple/int.
+        vocab (dict): Mapping from codeword strings to symbol tuples (which may include more codewords).
+
+    Returns:
+        tuple[int]: Fully flattened tuple of integers.
+    """
+    if not isinstance(token, str):
+        if isinstance(token, tuple):
+            return tuple(int(x) for x in token)
+        return (int(token),)
+
+    resolved = vocab.get([token], default)
+    return tuple(x for part in resolved for x in dfs(part, vocab))
+
+
+
+def compress_indices(indices):  # TODO: can use BPE for compress indices
     if not indices:
         return []
 

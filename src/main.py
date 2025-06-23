@@ -13,7 +13,7 @@ def main():
     num_samples = 1
     max_codeword_size = (1, 2, 2)
     dim_index = [1, 2, 3]
-    min_freq = {'root': 0.01, 'merge': 0.01, 'freq_counter': 0.01}
+    min_freq = {'root': 0.01, 'merge': 0.001, 'freq_counter': 0.01}
 
     transform = transforms.Compose([
         transforms.ToTensor(),
@@ -34,18 +34,11 @@ def main():
     print('vocabulary:', tokenizer.vocab)
 
     sample = dataset[0][data_name]
-    print(sample.size())
-    encoded = tokenizer.encode(sample, max_codeword_size=(1, 2, 2), dim_index=dim_index)
+    encoded = tokenizer.encode(sample, max_codeword_size=max_codeword_size, dim_index=dim_index)
     print("encoded:", encoded)
 
-    exit()
-    decoded = tokenizer.decode(
-        encoded,
-        max_codeword_size=max_codeword_size,
-        dim_index=dim_index,
-        data_shape=sample.shape,
-        data_dtype=sample.dtype
-    )
+    decoded = tokenizer.decode(encoded, max_codeword_size=max_codeword_size, dim_index=dim_index,
+                               data_shape=sample.shape, data_dtype=sample.dtype)
 
     print("Decoded shape:", decoded.shape)
     print("Exact match:", torch.equal(decoded, sample))

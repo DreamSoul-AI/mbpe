@@ -70,6 +70,11 @@ class State:
         self.codeword_indices[codeword_size] = compress_indices(self.codeword_indices[codeword_size])
         return
 
+    def decompress_indices(self, codeword_size):
+        self.symbol_indices[codeword_size] = decompress_indices(self.symbol_indices[codeword_size])
+        self.codeword_indices[codeword_size] = decompress_indices(self.codeword_indices[codeword_size])
+        return
+
     def __repr__(self):
         return (
             f"State(\n"
