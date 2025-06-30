@@ -8,7 +8,7 @@ from .state import State
 from .frequency_counter import FrequencyCounter
 from .vocab import Vocab
 
-
+# https://github.com/Collaborative-AI/mbpe/blob/d8b02a5bfaa831021689d8ab2e3b2254706c9c92/src/mbpe/tokenizer.py#L196
 class Tokenizer:
     def __init__(self, min_freq, batch_size=1, max_workers=None):
         super().__init__()
@@ -62,6 +62,7 @@ class Tokenizer:
         print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
         for m, codeword_size in enumerate(codeword_sizes):
+            print(m, codeword_size)
             codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size, dim_index)
             is_last = m == len(codeword_sizes) - 1
@@ -77,6 +78,7 @@ class Tokenizer:
                     states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size)
                     # states[index_tracker].compress_indices(codeword_size)
                     index_tracker += 1
+            print(states[index_tracker-1])
         return
 
     def patchify(self, state, patchify):
@@ -84,6 +86,7 @@ class Tokenizer:
         data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)
+        # TODO: need to split here
         return state
 
     def make_root(self, state, codeword_size, is_last, update=True):
@@ -97,7 +100,11 @@ class Tokenizer:
             root_symbols, root_symbol_indices, non_root_symbols, non_root_symbol_indices = \
                 self.vocab.filter_symbols(state.symbols, codeword_size)
             codewords = self.vocab.get_codewords(root_symbols, codeword_size)
-
+        print(state.symbols)
+        print(root_symbols)
+        print(codewords)
+        print(root_symbol_indices)
+        # TODO: need to use extend code and code_indices
         data = state.data[non_root_symbol_indices]
         symbols, symbol_indices, codewords, codeword_indices = \
             non_root_symbols, non_root_symbol_indices, codewords, root_symbol_indices
@@ -108,7 +115,6 @@ class Tokenizer:
         return state
 
     def merge_pair(self, state, codeword_size, update=True):
-        # TODO: need to make sure the elements in pair also in vocab
         while True:
             pairs = state.merge(state.joined)
             if update:
@@ -122,12 +128,12 @@ class Tokenizer:
                 codeword = self.vocab.update(max_pair, codeword_size)
             else:
                 codeword = self.vocab.get_codeword(max_pair, codeword_size)
-                print('merged', max_pair, codeword)
                 if codeword is None:
                     break
             joined = state.merge_symbol(state.joined, max_pair, codeword)
 
-            symbols = []  # TODO: this needs better solution
+            # TODO: this needs better solution, need to use split
+            symbols = []
             symbol_indices = []
             codewords = []
             codeword_indices = []
@@ -142,7 +148,7 @@ class Tokenizer:
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
                          codewords=codewords, codeword_indices=codeword_indices, joined=joined,
                          codeword_size=codeword_size)
-        state.update(joined=[])
+        # state.update(joined=[])
         return state
 
     @torch.no_grad()
@@ -150,31 +156,39 @@ class Tokenizer:
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         state = State(data)
         for m, codeword_size in enumerate(codeword_sizes):
+            print(m, codeword_size)
             codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size, dim_index)
             is_last = m == len(codeword_sizes) - 1
             state = self.patchify(state, patchify)
             state = self.make_root(state, codeword_size, is_last, update=False)
             state = self.merge_pair(state, codeword_size, update=False)
+            print(state)
             # state.compress_indices(codeword_size)
         return state
 
     @torch.no_grad()
     def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
-        codeword_sizes = self.find_tuple_shapes(max_codeword_size)
-        for codeword_size in reversed(codeword_sizes):
-            codeword_size = tuple(codeword_size)
-            print(codeword_size)
-            patchify = Reconstruct(codeword_size, dim_index)
-            # state.decompress_indices(codeword_size)
-            print(len(state.codewords))
-            symbols = self.vocab.get_symbols(state.codewords)
-            print(symbols)
-            exit()
+        exit()
 
 
-            joined = state.join(state.symbols, state.symbol_indices[codeword_size],
-                                state.codewords, state.codeword_indices[codeword_size])
-            print(joined)
-            exit()
+
+
+
+        # codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        # for codeword_size in reversed(codeword_sizes):
+        #     codeword_size = tuple(codeword_size)
+        #     print(codeword_size)
+        #     patchify = Reconstruct(codeword_size, dim_index)
+        #     # state.decompress_indices(codeword_size)
+        #     print(len(state.codewords))
+        #     symbols = self.vocab.get_symbols(state.codewords)
+        #     print(symbols)
+        #     exit()
+        #
+        #
+        #     joined = state.join(state.symbols, state.symbol_indices[codeword_size],
+        #                         state.codewords, state.codeword_indices[codeword_size])
+        #     print(joined)
+        #     exit()
         return state

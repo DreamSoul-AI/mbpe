@@ -32,7 +32,7 @@ def main():
     tokenizer = mbpe.tokenizer.Tokenizer(min_freq, batch_size=batch_size, max_workers=max_workers)
     tokenizer.train(dataset, data_name, max_codeword_size, dim_index)
     print('vocabulary:', tokenizer.vocab)
-
+    exit()
     sample = dataset[0][data_name]
     encoded = tokenizer.encode(sample, max_codeword_size=max_codeword_size, dim_index=dim_index)
     print("encoded:", encoded)
