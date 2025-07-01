@@ -57,6 +57,7 @@ def split(data, scale_factor):
 
     return tuples, tuples_indices, codes, code_indices
 
+
 #
 # def dfs(token, vocab):
 #     """
@@ -122,34 +123,3 @@ def dfs(token, vocab, default=None):
 
     resolved = vocab.get([token], default)
     return tuple(x for part in resolved for x in dfs(part, vocab))
-
-
-
-def compress_indices(indices):  # TODO: can use BPE for compress indices
-    if not indices:
-        return []
-
-    indices = sorted(indices)
-    compressed = []
-    start = prev = indices[0]
-
-    for i in indices[1:]:
-        if i == prev + 1:
-            prev = i
-        else:
-            compressed.append(start if start == prev else (start, prev))
-            start = prev = i
-
-    compressed.append(start if start == prev else (start, prev))
-    return compressed
-
-
-def decompress_indices(compressed):
-    result = []
-    for item in compressed:
-        if isinstance(item, int):
-            result.append(item)
-        else:
-            start, end = item
-            result.extend(range(start, end + 1))
-    return result

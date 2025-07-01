@@ -13,14 +13,15 @@ class Patchify(nn.Module):
         self.patch_size = patch_size
         self.dim_index = dim_index
 
-    def get_scale_factor(self, size):
+    def get_scale_factor(self, size, patch_size=None):
         """
         Computes the scale factor for downscaling based on the patch size.
         :param size: Original size of the tensor.
         :return: Scale factor.
         """
+        patch_size = patch_size if patch_size is not None else self.patch_size
         for i, dim in enumerate(self.dim_index):
-            factor = size[dim] // self.patch_size[i]
+            factor = size[dim] // patch_size[i]
             if factor != 1:
                 return factor
         return 1

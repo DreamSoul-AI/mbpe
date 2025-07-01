@@ -1,5 +1,4 @@
 import numpy as np
-from .utils import compress_indices, decompress_indices
 
 
 class State:
@@ -10,13 +9,12 @@ class State:
         self.size = list(data.size())
 
         self.symbols = symbols if symbols is not None else []
-        self.symbol_indices = symbol_indices if symbol_indices is not None else {}
+        self.symbol_indices = symbol_indices if symbol_indices is not None else []
         self.codewords = codewords if codewords is not None else []
-        self.codeword_indices = codeword_indices if codeword_indices is not None else {}
+        self.codeword_indices = codeword_indices if codeword_indices is not None else []
         self.joined = joined if joined is not None else []
 
-    def update(self, data=None, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None, joined=None,
-               codeword_size=None):
+    def update(self, data=None, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None, joined=None):
         if data is not None:
             self.data = data
             self.dtype = data.dtype
@@ -25,35 +23,54 @@ class State:
         if symbols is not None:
             self.symbols = symbols
 
-        if symbol_indices is not None and codeword_size is not None:
-            self.symbol_indices[codeword_size] = symbol_indices
+        if symbol_indices is not None:
+            self.symbol_indices = symbol_indices
 
         if codewords is not None:
             self.codewords = codewords
 
-        if codeword_indices is not None and codeword_size is not None:
-            self.codeword_indices[codeword_size] = codeword_indices
+        if codeword_indices is not None:
+            self.codeword_indices = codeword_indices
 
         if joined is not None:
             self.joined = joined
         return
 
     def join(self, symbols, symbol_indices, codewords, codeword_indices):
+        print(symbols)
+        print(codewords)
         total_length = len(symbols) + len(codewords)
         merged = np.empty(total_length, dtype=object)
         merged[symbol_indices] = np.fromiter(symbols, dtype=object)
         merged[codeword_indices] = codewords
         joined = merged.tolist()
+        print(joined)
         return joined
 
-    def merge(self, symbols):
-        merged = []
-        for i in range(len(symbols) - 1):
-            pair = (symbols[i], symbols[i + 1])
-            merged.append(pair)
-        return merged
+    def split(self, joined, scale_factor):
+        symbols = []
+        symbol_indices = []
+        codewords = []
+        codeword_indices = []
 
-    def merge_symbol(self, symbols, symbol, codeword):
+        for item in joined:
+            base_offset = len(symbols) * scale_factor + len(codewords)
+            if isinstance(item, tuple):
+                symbols.append(item)
+                symbol_indices.extend(range(base_offset, base_offset + scale_factor))
+            else:
+                codewords.append(item)
+                codeword_indices.append(base_offset)
+        return symbols, symbol_indices, codewords, codeword_indices
+
+    def pair(self, input):
+        pairs = []
+        for i in range(len(input) - 1):
+            pair = (input[i], input[i + 1])
+            pairs.append(pair)
+        return pairs
+
+    def merge(self, symbols, symbol, codeword):
         new_symbols = []
         i = 0
         while i < len(symbols):
@@ -65,14 +82,11 @@ class State:
                 i += 1
         return new_symbols
 
-    def compress_indices(self, codeword_size):
-        self.symbol_indices[codeword_size] = compress_indices(self.symbol_indices[codeword_size])
-        self.codeword_indices[codeword_size] = compress_indices(self.codeword_indices[codeword_size])
-        return
-
-    def decompress_indices(self, codeword_size):
-        self.symbol_indices[codeword_size] = decompress_indices(self.symbol_indices[codeword_size])
-        self.codeword_indices[codeword_size] = decompress_indices(self.codeword_indices[codeword_size])
+    def finalize(self):
+        self.symbols = []
+        self.symbol_indices = []
+        self.codewords = []
+        self.codeword_indices = []
         return
 
     def __repr__(self):
