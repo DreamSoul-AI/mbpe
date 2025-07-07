@@ -94,14 +94,6 @@ class Vocab:
             symbol = self.codeword2symbol.get(codeword, default)
         return symbol
 
-    def get_symbols(self, codewords, codeword_size=None, default=None):
-        symbols = []
-        for codeword in codewords:
-            symbol = self.get_symbol(codeword, codeword_size, default)
-            if symbol is not None:
-                symbols.append(symbol)
-        return symbols
-
     def __contains__(self, key, codeword_size=None):
         return key in self.symbol2codeword or key in self.codeword2symbol
 

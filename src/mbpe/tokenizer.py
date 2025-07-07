@@ -65,7 +65,7 @@ class Tokenizer:
             patchify = Patchify(codeword_size, dim_index)
             is_first = m == 0
             is_last = m == len(codeword_sizes) - 1
-            print(m, codeword_size, is_last)
+            # print(m, codeword_size, is_last)
             index_tracker = 0
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
@@ -77,7 +77,7 @@ class Tokenizer:
                     states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_first, is_last)
                     states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size, is_last)
                     index_tracker += 1
-            print(states[index_tracker - 1])
+            # print(states[index_tracker - 1])
         return
 
     def patchify(self, state, patchify, is_first):
@@ -119,7 +119,7 @@ class Tokenizer:
 
         joined = state.join(symbols, symbol_indices, state.codewords, state.codeword_indices)
         state.update(data=data, symbols=symbols, symbol_indices=symbol_indices, joined=joined)
-        print(state)
+        # print(state)
         return state
 
     def merge_pair(self, state, codeword_size, is_last, update=True):
@@ -138,7 +138,7 @@ class Tokenizer:
                 codeword = self.vocab.get_codeword(max_pair, codeword_size)
             if codeword is None:
                 break
-            print(max_pair, max_freq, codeword)
+            # print(max_pair, max_freq, codeword)
             joined = state.merge(state.joined, max_pair, codeword)
             state.update(joined=joined)
         if is_last:
@@ -150,7 +150,7 @@ class Tokenizer:
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         state = State(data)
         for m, codeword_size in enumerate(codeword_sizes):
-            print(m, codeword_size)
+            # print(m, codeword_size)
             codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size, dim_index)
             is_first = m == 0
@@ -158,27 +158,16 @@ class Tokenizer:
             state = self.patchify(state, patchify, is_first)
             state = self.make_root(state, codeword_size, is_first, is_last, update=False)
             state = self.merge_pair(state, codeword_size, is_last, update=False)
-            print(state)
+            # print(state)
         return state
 
-    @torch.no_grad() # TODO: refactor
-    def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
-        exit()
-
-        # codeword_sizes = self.find_tuple_shapes(max_codeword_size)
-        # for codeword_size in reversed(codeword_sizes):
-        #     codeword_size = tuple(codeword_size)
-        #     print(codeword_size)
-        #     patchify = Reconstruct(codeword_size, dim_index)
-        #     # state.decompress_indices(codeword_size)
-        #     print(len(state.codewords))
-        #     symbols = self.vocab.get_symbols(state.codewords)
-        #     print(symbols)
-        #     exit()
-        #
-        #
-        #     joined = state.join(state.symbols, state.symbol_indices[codeword_size],
-        #                         state.codewords, state.codeword_indices[codeword_size])
-        #     print(joined)
-        #     exit()
-        return state
+    @torch.no_grad()
+    def decode(self, state, data_shape, data_dtype):
+        joined = state.joined
+        decoded = []
+        for i in range(len(joined)):
+            codeword_i = joined[i]
+            decoded_i = dfs(codeword_i, self.vocab.get_symbol)
+            decoded.extend(decoded_i)
+        decoded = torch.tensor(decoded, dtype=data_dtype).view(*data_shape)
+        return decoded

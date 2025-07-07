@@ -1,4 +1,5 @@
 import numpy as np
+import numbers
 import torch
 from collections.abc import Iterable
 from itertools import repeat
@@ -105,21 +106,35 @@ def split(data, scale_factor):
 #     return tup
 
 
-def dfs(token, vocab, default=None):
-    """
-    Recursively decode a codeword (str or tuple) into a flat tuple of integers.
+# def dfs(token, vocab, default=None):
+#     """
+#     Recursively decode a codeword (str or tuple) into a flat tuple of integers.
+#
+#     Args:
+#         token (str | tuple | int): A codeword (string), or base-level tuple/int.
+#         vocab (dict): Mapping from codeword strings to symbol tuples (which may include more codewords).
+#
+#     Returns:
+#         tuple[int]: Fully flattened tuple of integers.
+#     """
+#     if not isinstance(token, str):
+#         if isinstance(token, tuple):
+#             return tuple(int(x) for x in token)
+#         return (int(token),)
+#
+#     resolved = vocab.get([token], default)
+#     return tuple(x for part in resolved for x in dfs(part, vocab))
 
-    Args:
-        token (str | tuple | int): A codeword (string), or base-level tuple/int.
-        vocab (dict): Mapping from codeword strings to symbol tuples (which may include more codewords).
 
-    Returns:
-        tuple[int]: Fully flattened tuple of integers.
-    """
-    if not isinstance(token, str):
-        if isinstance(token, tuple):
-            return tuple(int(x) for x in token)
-        return (int(token),)
-
-    resolved = vocab.get([token], default)
-    return tuple(x for part in resolved for x in dfs(part, vocab))
+def dfs(input, search_fn):
+    if isinstance(input, numbers.Integral):
+        return [input]
+    elif isinstance(input, str):
+        return dfs(search_fn(input), search_fn)
+    elif isinstance(input, tuple):
+        result = []
+        for item in input:
+            result.extend(dfs(item, search_fn))
+        return result
+    else:
+        raise TypeError(f"Unexpected type {type(input)} in dfs")
