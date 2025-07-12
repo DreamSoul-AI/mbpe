@@ -7,10 +7,10 @@ from torch.utils.data import Subset
 
 def main():
     torch.manual_seed(1)
-    batch_size = 1
+    batch_size = 2
     max_workers = 0
     data_name = 0
-    num_samples = 1
+    num_samples = 10
     max_codeword_size = (1, 2, 2)
     dim_index = [1, 2, 3]
     min_freq = {'root': 0.01, 'merge': 0.001, 'freq_counter': 0.01}  # TODO: take in int
@@ -26,7 +26,7 @@ def main():
         indices = list(range(0, num_samples))
         dataset = Subset(dataset, indices)
 
-    sample = dataset[0][data_name]
+    sample = dataset[0][data_name] # first dimension as seq
     print('sample:', sample)
 
     tokenizer = mbpe.tokenizer.Tokenizer(min_freq, batch_size=batch_size, max_workers=max_workers)
@@ -38,6 +38,12 @@ def main():
     print("decoded:", decoded)
     print("Decoded shape:", decoded.shape)
     print("Exact match:", torch.equal(decoded, sample))
+    sort_sample = torch.tensor(sorted(sample.view(-1).tolist()))
+    sort_decoded = torch.tensor(sorted(decoded.view(-1).tolist()))
+    print(sort_sample)
+    print(sort_decoded)
+    print("Sorted match:", torch.equal(sort_decoded, sort_sample))
+    exit()
     return
 
 

@@ -37,14 +37,11 @@ class State:
         return
 
     def join(self, symbols, symbol_indices, codewords, codeword_indices):
-        print(symbols)
-        print(codewords)
         total_length = len(symbols) + len(codewords)
         merged = np.empty(total_length, dtype=object)
         merged[symbol_indices] = np.fromiter(symbols, dtype=object)
         merged[codeword_indices] = codewords
         joined = merged.tolist()
-        print(joined)
         return joined
 
     def split(self, joined, scale_factor):

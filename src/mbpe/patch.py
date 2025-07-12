@@ -37,10 +37,12 @@ class Patchify(nn.Module):
             dim_index = [idx + 1 for idx in self.dim_index]
         else:
             dim_index = self.dim_index
+        print(dim_index)
         # Dynamically calculate downscale factor
         downscale_factor = [
             x.shape[dim_index[i]] // self.patch_size[i] for i in range(len(dim_index))
         ]
+        print(x.shape, downscale_factor)
         x = self._tensor_unshuffle(x, downscale_factor, dim_index)
         if not is_batch:
             x = x.squeeze(0)
@@ -91,6 +93,7 @@ class Reconstruct(nn.Module):
             dim_index = [idx + 1 for idx in self.dim_index]
         else:
             dim_index = self.dim_index
+        print(dim_index)
         upscale_factor = [
             self.data_size[dim_index[i]] // x.shape[-len(dim_index):][i] for i in range(len(dim_index))
         ]
