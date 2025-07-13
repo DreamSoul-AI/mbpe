@@ -82,13 +82,13 @@ class Tokenizer:
 
     def patchify(self, state, patchify, is_first):
         if not is_first:
+            codeword_size = patchify.patch_size
             scale_factor = patchify.get_scale_factor(state.size)
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
             data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
-                         codewords=codewords, codeword_indices=codeword_indices)
+                         codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
 
-        print(state.data.size())
         codeword_size = patchify.patch_size
         data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
@@ -116,10 +116,11 @@ class Tokenizer:
         symbols = non_root_symbols
         symbol_indices = non_root_indices
         state.codewords.extend(root_codewords)
-        state.codeword_indices.extend(root_indices)
+        state.codeword_indices[codeword_size].extend(root_indices)
 
-        joined = state.join(symbols, symbol_indices, state.codewords, state.codeword_indices)
-        state.update(data=data, symbols=symbols, symbol_indices=symbol_indices, joined=joined)
+        joined = state.join(symbols, symbol_indices, state.codewords, state.codeword_indices[codeword_size])
+        state.update(data=data, symbols=symbols, symbol_indices=symbol_indices, joined=joined,
+                     codeword_size=codeword_size)
         # print(state)
         return state
 
@@ -139,7 +140,6 @@ class Tokenizer:
                 codeword = self.vocab.get_codeword(max_pair, codeword_size)
             if codeword is None:
                 break
-            # print(max_pair, max_freq, codeword)
             joined = state.merge(state.joined, max_pair, codeword)
             state.update(joined=joined)
         if is_last:
@@ -162,7 +162,7 @@ class Tokenizer:
             print(state)
         return state
 
-    @torch.no_grad()
+    @torch.no_grad() # TODO: split vocab to different layer is the key
     def decode(self, state, data_shape, data_dtype):
         joined = state.joined
         decoded = []
@@ -174,7 +174,7 @@ class Tokenizer:
         decoded = torch.tensor(decoded, dtype=data_dtype).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         print(decoded.size())
         print(data_shape)
-        reconstruct = Reconstruct([1] + list(data_shape), dim_index=[1, 2, 3]) #TODO: revise this [1]
+        reconstruct = Reconstruct([1] + list(data_shape), dim_index=[1, 2, 3])
         decoded = reconstruct(decoded, is_batch=False)
         print(decoded.size())
         # decoded = torch.tensor(decoded, dtype=data_dtype).view(*data_shape)

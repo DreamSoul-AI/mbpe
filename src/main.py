@@ -34,16 +34,16 @@ def main():
     print('vocabulary:', tokenizer.vocab)
     encoded = tokenizer.encode(sample, max_codeword_size=max_codeword_size, dim_index=dim_index)
     print("encoded:", encoded)
+    exit()
     decoded = tokenizer.decode(encoded, data_shape=sample.shape, data_dtype=sample.dtype)
     print("decoded:", decoded)
     print("Decoded shape:", decoded.shape)
     print("Exact match:", torch.equal(decoded, sample))
     sort_sample = torch.tensor(sorted(sample.view(-1).tolist()))
     sort_decoded = torch.tensor(sorted(decoded.view(-1).tolist()))
-    print(sort_sample)
-    print(sort_decoded)
-    print("Sorted match:", torch.equal(sort_decoded, sort_sample))
-    exit()
+    # print(sort_sample)
+    # print(sort_decoded)
+    # print("Sorted match:", torch.equal(sort_decoded, sort_sample))
     return
 
 

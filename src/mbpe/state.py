@@ -1,5 +1,6 @@
 import numpy as np
-
+from collections import defaultdict
+from .utils import compress_indices, decompress_indices
 
 class State:
     def __init__(self, data, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None,
@@ -11,10 +12,11 @@ class State:
         self.symbols = symbols if symbols is not None else []
         self.symbol_indices = symbol_indices if symbol_indices is not None else []
         self.codewords = codewords if codewords is not None else []
-        self.codeword_indices = codeword_indices if codeword_indices is not None else []
+        self.codeword_indices = codeword_indices if codeword_indices is not None else defaultdict(list)
         self.joined = joined if joined is not None else []
 
-    def update(self, data=None, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None, joined=None):
+    def update(self, data=None, symbols=None, symbol_indices=None, codewords=None, codeword_indices=None, joined=None,
+               codeword_size=None):
         if data is not None:
             self.data = data
             self.dtype = data.dtype
@@ -29,8 +31,8 @@ class State:
         if codewords is not None:
             self.codewords = codewords
 
-        if codeword_indices is not None:
-            self.codeword_indices = codeword_indices
+        if codeword_indices is not None and codeword_size is not None:
+            self.codeword_indices[codeword_size] = codeword_indices
 
         if joined is not None:
             self.joined = joined
@@ -83,7 +85,11 @@ class State:
         self.symbols = []
         self.symbol_indices = []
         self.codewords = []
-        self.codeword_indices = []
+        return
+
+    def compress_indices(self, codeword_size):
+        self.symbol_indices[codeword_size] = compress_indices(self.symbol_indices[codeword_size])
+        self.codeword_indices[codeword_size] = compress_indices(self.codeword_indices[codeword_size])
         return
 
     def __repr__(self):

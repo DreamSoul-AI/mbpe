@@ -59,7 +59,6 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
-
 def dfs(input, search_fn):
     if isinstance(input, numbers.Integral):
         return [input]
@@ -72,3 +71,33 @@ def dfs(input, search_fn):
         return result
     else:
         raise TypeError(f"Unexpected type {type(input)} in dfs")
+
+
+def compress_indices(indices):  # TODO: need better compression
+    if not indices:
+        return []
+
+    indices = sorted(indices)
+    compressed = []
+    start = prev = indices[0]
+
+    for i in indices[1:]:
+        if i == prev + 1:
+            prev = i
+        else:
+            compressed.append(start if start == prev else (start, prev))
+            start = prev = i
+
+    compressed.append(start if start == prev else (start, prev))
+    return compressed
+
+
+def decompress_indices(compressed):
+    result = []
+    for item in compressed:
+        if isinstance(item, int):
+            result.append(item)
+        else:
+            start, end = item
+            result.extend(range(start, end + 1))
+    return result
