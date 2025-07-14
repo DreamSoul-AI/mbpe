@@ -1,4 +1,6 @@
 import threading
+from functools import partial
+
 import torch
 from torch.utils.data import DataLoader
 from concurrent.futures import ThreadPoolExecutor
@@ -85,7 +87,7 @@ class Tokenizer:
             codeword_size = patchify.patch_size
             scale_factor = patchify.get_scale_factor(state.size)
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
-            data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
+            data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False) # TODO: need to use this codeword_indices
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
                          codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
 
@@ -101,11 +103,11 @@ class Tokenizer:
             threshold = None if is_last else self.freq_counter.min_freq['root']
             root_symbols, root_indices, non_root_symbols, non_root_indices = \
                 self.freq_counter.filter_symbols(state.symbols, threshold)
-            root_codewords = self.vocab.update(root_symbols)
+            root_codewords = self.vocab.update(root_symbols, codeword_size)
         else:
             root_symbols, root_indices, non_root_symbols, non_root_indices = \
                 self.vocab.filter_symbols(state.symbols, codeword_size)
-            root_codewords = self.vocab.get_codewords(root_symbols)
+            root_codewords = self.vocab.get_codewords(root_symbols, codeword_size)
 
         data = state.data[non_root_indices]
 
@@ -135,7 +137,7 @@ class Tokenizer:
             if update:
                 if max_freq < self.freq_counter.min_freq['merge']:
                     break
-                codeword = self.vocab.update(max_pair)
+                codeword = self.vocab.update(max_pair, codeword_size)
             else:
                 codeword = self.vocab.get_codeword(max_pair, codeword_size)
             if codeword is None:
@@ -163,19 +165,59 @@ class Tokenizer:
         return state
 
     @torch.no_grad() # TODO: split vocab to different layer is the key
-    def decode(self, state, data_shape, data_dtype):
-        joined = state.joined
-        decoded = []
-        for i in range(len(joined)):
-            codeword_i = joined[i]
-            decoded_i = dfs(codeword_i, self.vocab.get_symbol)
-            decoded.extend(decoded_i)
+    def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
+        codeword_sizes = list(reversed(self.find_tuple_shapes(max_codeword_size)))
+        for m, codeword_size in enumerate(codeword_sizes):
+            print(m, codeword_size)
+            print(self.vocab.codeword_size_symbols[codeword_size])
+            print(self.vocab.codeword_size_codewords[codeword_size])
+            codeword_size = tuple(codeword_size)
+            reconstruct = Reconstruct([1, 1] + list(codeword_sizes[m+1]), dim_index) # TODO: refactor, need to revise and test
+            decoded = []
 
-        decoded = torch.tensor(decoded, dtype=data_dtype).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-        print(decoded.size())
-        print(data_shape)
-        reconstruct = Reconstruct([1] + list(data_shape), dim_index=[1, 2, 3])
-        decoded = reconstruct(decoded, is_batch=False)
-        print(decoded.size())
-        # decoded = torch.tensor(decoded, dtype=data_dtype).view(*data_shape)
+            for i in range(len(state.joined)):
+                codeword_i = state.joined[i]
+                get_symbol = partial(self.vocab.get_symbol, codeword_size=codeword_size)
+                decoded_i = dfs(codeword_i, get_symbol)
+                decoded.extend(decoded_i)
+            symbols = []
+            codewords = []
+            symbol_indices = []
+            codeword_indices = []
+            for i, decoded_i in enumerate(decoded):
+                if isinstance(decoded_i, str):
+                    codewords.append(decoded_i)
+                    codeword_indices.append(i)
+                else:
+                    symbols.extend(decoded_i)
+                    symbol_indices.append(i)
+            print(symbols)
+            print(codewords)
+            print(symbol_indices)
+            print(codeword_indices)
+
+            data = tuple_to_tensor(symbols, [1] + list(codeword_size), data_dtype, is_batch=False)
+            print(data.size())
+            reconstructed = reconstruct(data, is_batch=False)
+            print(reconstructed.size())
+            print(len(codewords))
+            print(state.codeword_indices)
+            print(state.codeword_indices[codeword_sizes[m+1]])
+            print(len(state.codeword_indices[codeword_sizes[m+1]]))
+            exit()
+
+        # joined = state.joined
+        # decoded = []
+        # for i in range(len(joined)):
+        #     codeword_i = joined[i]
+        #     decoded_i = dfs(codeword_i, self.vocab.get_symbol) # TODO: refactor
+        #     decoded.extend(decoded_i)
+        #
+        # decoded = torch.tensor(decoded, dtype=data_dtype).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        # print(decoded.size())
+        # print(data_shape)
+        # reconstruct = Reconstruct([1] + list(data_shape), dim_index=[1, 2, 3])
+        # decoded = reconstruct(decoded, is_batch=False)
+        # print(decoded.size())
+        # # decoded = torch.tensor(decoded, dtype=data_dtype).view(*data_shape)
         return decoded

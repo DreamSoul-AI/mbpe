@@ -59,11 +59,19 @@ def split(data, scale_factor):
     return tuples, tuples_indices, codes, code_indices
 
 
+def is_tuple_of_integrals(x):
+    return isinstance(x, tuple) and all(isinstance(elem, numbers.Integral) for elem in x)
+
+
 def dfs(input, search_fn):
-    if isinstance(input, numbers.Integral):
+    if is_tuple_of_integrals(input):
         return [input]
     elif isinstance(input, str):
-        return dfs(search_fn(input), search_fn)
+        searched = search_fn(input)
+        if searched is None:
+            return [input]
+        else:
+            return dfs(search_fn(input), search_fn)
     elif isinstance(input, tuple):
         result = []
         for item in input:
