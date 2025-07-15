@@ -5,20 +5,11 @@ import math
 
 class Patchify(nn.Module):
     def __init__(self, patch_size, dim_index):
-        """
-        Initializes the Patchify module.
-        :param target_patch_shape: Target shape for patches, e.g., (1, 7, 7).
-        """
         super(Patchify, self).__init__()
         self.patch_size = patch_size
         self.dim_index = dim_index
 
     def get_scale_factor(self, size, patch_size=None):
-        """
-        Computes the scale factor for downscaling based on the patch size.
-        :param size: Original size of the tensor.
-        :return: Scale factor.
-        """
         patch_size = patch_size if patch_size is not None else self.patch_size
         for i, dim in enumerate(self.dim_index):
             factor = size[dim] // patch_size[i]
@@ -27,20 +18,12 @@ class Patchify(nn.Module):
         return 1
 
     def forward(self, x, is_batch=True):
-        """
-        Patchify the input tensor.
-        :param x: Input tensor of shape (batch_size, channels, height, width).
-        :return: Patchified tensor.
-        """
         if not is_batch:
             x = x.unsqueeze(0)
             dim_index = [idx + 1 for idx in self.dim_index]
         else:
             dim_index = self.dim_index
-        # Dynamically calculate downscale factor
-        downscale_factor = [
-            x.shape[dim_index[i]] // self.patch_size[i] for i in range(len(dim_index))
-        ]
+        downscale_factor = [x.shape[dim_index[i]] // self.patch_size[i] for i in range(len(dim_index))]
         x = self._tensor_unshuffle(x, downscale_factor, dim_index)
         if not is_batch:
             x = x.squeeze(0)
@@ -60,7 +43,7 @@ class Patchify(nn.Module):
             downscale_factor_index.append(dim_index_i + 1)
             index_accum += 1
         reshaped_tensor = tensor.view(tensor_size)
-        permute_order = [0, 1] + downscale_factor_index + base_index
+        permute_order = [0] + downscale_factor_index + base_index
         permuted_tensor = reshaped_tensor.permute(permute_order)
         downscale_size = [tensor_size[i] for i in downscale_factor_index]
         base_size = [tensor_size[i] for i in base_index]
@@ -72,30 +55,19 @@ class Patchify(nn.Module):
 
 class Reconstruct(nn.Module):
     def __init__(self, data_size, dim_index):
-        """
-        Initializes the Reconstruct module.
-        :param original_shape: Original shape of the tensor to reconstruct, e.g., (batch_size, channels, height, width).
-        """
         super(Reconstruct, self).__init__()
         self.data_size = data_size
         self.dim_index = dim_index
 
     def forward(self, x, is_batch=True):
-        """
-        Reconstruct the original tensor from patches.
-        :param x: Patchified tensor.
-        :return: Reconstructed tensor.
-        """
         if not is_batch:
             x = x.unsqueeze(0)
+            data_size = [1] + list(self.data_size)
             dim_index = [idx + 1 for idx in self.dim_index]
         else:
+            data_size = self.data_size
             dim_index = self.dim_index
-        print(self.data_size)
-        print(dim_index)
-        upscale_factor = [
-            self.data_size[dim_index[i]] // x.shape[-len(dim_index):][i] for i in range(len(dim_index))
-        ]
+        upscale_factor = [data_size[dim_index[i]] // x.shape[-len(dim_index):][i] for i in range(len(dim_index))]
         x = self._tensor_shuffle(x, upscale_factor, dim_index)
         if not is_batch:
             x = x.squeeze(0)

@@ -1,3 +1,7 @@
+import torch
+from mbpe.patch import Patchify, Reconstruct
+
+
 def main():
     # def dfs(token, vocab, codeword_size, codeword_size_codewords):
     #     """
@@ -48,51 +52,89 @@ def main():
     # print(dfs('C', vocab, (1, 2), codeword_size_codewords))  # (1, 2, 1, 2, 1, 2, 1, 2)
     # print(dfs('X', vocab, (1, 2), codeword_size_codewords))  # 'X' (left as-is)
 
-    def dfs(input, search_fn):
-        if isinstance(input, int):
-            return [input]
-        elif isinstance(input, str):
-            return dfs(search_fn(input), search_fn)
-        elif isinstance(input, tuple):
-            result = []
-            for item in input:
-                result.extend(dfs(item, search_fn))
-            return result
-        else:
-            raise TypeError(f"Unexpected type {type(input)} in dfs")
+    # def dfs(input, search_fn):
+    #     if isinstance(input, int):
+    #         return [input]
+    #     elif isinstance(input, str):
+    #         return dfs(search_fn(input), search_fn)
+    #     elif isinstance(input, tuple):
+    #         result = []
+    #         for item in input:
+    #             result.extend(dfs(item, search_fn))
+    #         return result
+    #     else:
+    #         raise TypeError(f"Unexpected type {type(input)} in dfs")
+    #
+    # # Sample vocabulary: string -> tuple of int or other strings
+    # vocab = {
+    #     'A': ('B', 'C'),
+    #     'B': (1, 2),
+    #     'C': ('D', 3),
+    #     'D': (4, 5),
+    #     'X': (6,)  # Also allow direct mapping to int
+    # }
+    #
+    # # search_fn using the vocab dictionary
+    # def search_fn(key):
+    #     if key not in vocab:
+    #         raise KeyError(f"Key '{key}' not found in vocabulary.")
+    #     return vocab[key]
+    #
+    # # Test cases
+    # test_cases = [
+    #     ('A', [1, 2, 4, 5, 3]),
+    #     (('A', 7), [1, 2, 4, 5, 3, 7]),
+    #     ((('B', 'C'), 'D'), [1, 2, 4, 5, 3, 4, 5]),
+    #     (9, [9]),
+    #     ('X', [6])
+    # ]
+    #
+    # # Run the test cases
+    # for i, (input_data, expected) in enumerate(test_cases, 1):
+    #     try:
+    #         result = dfs(input_data, search_fn)
+    #         assert result == expected, f"Expected {expected}, got {result}"
+    #         print(f"Test case {i} passed: {input_data} → {result}")
+    #     except Exception as e:
+    #         print(f"Test case {i} failed: {input_data} → Error: {e}")
 
-    # Sample vocabulary: string -> tuple of int or other strings
-    vocab = {
-        'A': ('B', 'C'),
-        'B': (1, 2),
-        'C': ('D', 3),
-        'D': (4, 5),
-        'X': (6,)  # Also allow direct mapping to int
-    }
+    # Define sample input tensor
+    batch_size = 2
+    channels = 3
+    height = 8
+    width = 8
+    is_batch = True
+    patch_size = [2, 2]
+    dim_index = [2, 3]  # Apply patching on H and W
 
-    # search_fn using the vocab dictionary
-    def search_fn(key):
-        if key not in vocab:
-            raise KeyError(f"Key '{key}' not found in vocabulary.")
-        return vocab[key]
+    x = torch.arange(batch_size * channels * height * width).float().reshape(batch_size, channels, height, width)
+    # x = x.unsqueeze(1)
+    if not is_batch:
+        x = x[0]
+        dim_index = [0, 1, 2]
 
-    # Test cases
-    test_cases = [
-        ('A', [1, 2, 4, 5, 3]),
-        (('A', 7), [1, 2, 4, 5, 3, 7]),
-        ((('B', 'C'), 'D'), [1, 2, 4, 5, 3, 4, 5]),
-        (9, [9]),
-        ('X', [6])
-    ]
+    print("Original Input Shape:", x.shape)
 
-    # Run the test cases
-    for i, (input_data, expected) in enumerate(test_cases, 1):
-        try:
-            result = dfs(input_data, search_fn)
-            assert result == expected, f"Expected {expected}, got {result}"
-            print(f"Test case {i} passed: {input_data} → {result}")
-        except Exception as e:
-            print(f"Test case {i} failed: {input_data} → Error: {e}")
+    # Patchify setup: divide height and width by 2
+
+    patchify = Patchify(patch_size=patch_size, dim_index=dim_index)
+    x_patched = patchify(x, is_batch=is_batch)
+
+    print("Patched Output Shape:", x_patched.shape)
+
+    # Reconstruct setup: needs original data size
+    data_size = list(x.shape)
+    reconstruct = Reconstruct(data_size=data_size, dim_index=dim_index)
+    x_reconstructed = reconstruct(x_patched, is_batch=is_batch)
+
+    print("Reconstructed Output Shape:", x_reconstructed.shape)
+
+    # Check reconstruction correctness
+    if torch.allclose(x, x_reconstructed):
+        print("✅ Reconstruction matches original input.")
+    else:
+        print("❌ Reconstruction does not match original input.")
+    return
 
 
 if __name__ == "__main__":
