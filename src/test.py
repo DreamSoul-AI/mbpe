@@ -104,14 +104,15 @@ def main():
     height = 8
     width = 8
     is_batch = True
-    patch_size = [2, 2]
-    dim_index = [2, 3]  # Apply patching on H and W
+    patch_size = [1, 2, 2]
+    dim_index = [2, 3, 4]  # Apply patching on H and W
 
     x = torch.arange(batch_size * channels * height * width).float().reshape(batch_size, channels, height, width)
-    # x = x.unsqueeze(1)
+    x = x.unsqueeze(1)
+
     if not is_batch:
         x = x[0]
-        dim_index = [0, 1, 2]
+        dim_index = [1, 2, 3]
 
     print("Original Input Shape:", x.shape)
 

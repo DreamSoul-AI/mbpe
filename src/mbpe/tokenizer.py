@@ -60,6 +60,7 @@ class Tokenizer:
     @torch.no_grad()
     def train(self, dataset, data_name, max_codeword_size, dim_index):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        print(codeword_sizes)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
@@ -67,10 +68,11 @@ class Tokenizer:
             patchify = Patchify(codeword_size, dim_index)
             is_first = m == 0
             is_last = m == len(codeword_sizes) - 1
-            # print(m, codeword_size, is_last)
+            print(m, codeword_size, is_last)
             index_tracker = 0
             for batch_idx, data in enumerate(data_loader):
                 data = data[data_name]
+                print(batch_idx, data.size())
                 for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
                     data_i = data[i]
                     if index_tracker not in states:
@@ -85,13 +87,16 @@ class Tokenizer:
     def patchify(self, state, patchify, is_first):
         if not is_first:
             codeword_size = patchify.patch_size
-            scale_factor = patchify.get_scale_factor(state.size)
+            scale_factor = patchify.get_scale_factor(state.size) # TODO: revise thise
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
             data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False) # TODO: need to use this codeword_indices
+            print(data.size())
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
                          codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
 
         codeword_size = patchify.patch_size
+        print(codeword_size)
+        print(state.data.size())
         data = patchify(state.data, is_batch=False)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)

@@ -42,8 +42,11 @@ class Patchify(nn.Module):
             base_index.append(dim_index_i)
             downscale_factor_index.append(dim_index_i + 1)
             index_accum += 1
+        print(tensor_size)
         reshaped_tensor = tensor.view(tensor_size)
-        permute_order = [0] + downscale_factor_index + base_index
+        print(reshaped_tensor.size())
+        permute_order = [0, 1] + downscale_factor_index + base_index
+        print(permute_order)
         permuted_tensor = reshaped_tensor.permute(permute_order)
         downscale_size = [tensor_size[i] for i in downscale_factor_index]
         base_size = [tensor_size[i] for i in base_index]
@@ -76,18 +79,22 @@ class Reconstruct(nn.Module):
     @staticmethod
     def _tensor_shuffle(tensor, upscale_factor, dim_index):
         tensor_size = list(tensor.size())
+        print(tensor_size)
         base_size = list(tensor_size[2:])
-        unmerged_size = [tensor_size[0]] + upscale_factor + base_size
+        unmerged_size = [tensor_size[0], 1] + upscale_factor + base_size
         unmerged_tensor = tensor.view(unmerged_size)
-        base_index = list(range(len(upscale_factor) + 1, len(upscale_factor) + 1 + len(base_size)))
-        downscale_factor_index = list(range(1, len(dim_index) + 1))
-        permute_order = [0] + base_index
+        print(unmerged_tensor.size())
+        base_index = list(range(len(upscale_factor) + 2, len(upscale_factor) + 2 + len(base_size)))
+        downscale_factor_index = list(range(2, len(dim_index) + 2))
+        permute_order = [0, 1] + base_index
         index_accum = 0
         for i in range(len(dim_index)):
             dim_index_i = dim_index[i] + index_accum
             permute_order.insert(dim_index_i + 1, downscale_factor_index[i])
             index_accum += 1
         permuted_tensor = unmerged_tensor.permute(permute_order)
-        shuffle_tensor_size = [tensor_size[0]] + [base_size[i] * upscale_factor[i] for i in range(len(dim_index))]
+        print(permuted_tensor.size())
+        shuffle_tensor_size = [tensor_size[0], -1] + [base_size[i] * upscale_factor[i] for i in range(len(dim_index))]
+        print(shuffle_tensor_size)
         shuffle_tensor = permuted_tensor.reshape(shuffle_tensor_size)
         return shuffle_tensor
