@@ -4,12 +4,12 @@ import math
 
 
 class Patchify(nn.Module):
-    def __init__(self, patch_size, dim_index):
+    def __init__(self, patch_size):
         super(Patchify, self).__init__()
         self.patch_size = patch_size
-        self.dim_index = dim_index
+        # self.dim_index = dim_index # TODO: remove this
 
-    def get_scale_factor(self, size, patch_size=None):
+    def get_scale_factor(self, size, patch_size=None): # TODO: refactor this
         patch_size = patch_size if patch_size is not None else self.patch_size
         for i, dim in enumerate(self.dim_index):
             factor = size[dim] // patch_size[i]
@@ -17,21 +17,25 @@ class Patchify(nn.Module):
                 return factor
         return 1
 
-    def forward(self, x, is_batch=True):
-        if not is_batch:
-            x = x.unsqueeze(0)
-            dim_index = [idx + 1 for idx in self.dim_index]
-        else:
-            dim_index = self.dim_index
+    def forward(self, x):
+        # if not is_batch:
+        #     x = x.unsqueeze(0)
+        #     dim_index = [idx + 1 for idx in self.dim_index]
+        # else:
+        #     dim_index = self.dim_index
+        if x.dim() == len(self.patch_size):
+            raise ValueError('Need a sequence dimension')
+        dim_index = list(range(x.dim() - len(self.patch_size), x.dim()))
         downscale_factor = [x.shape[dim_index[i]] // self.patch_size[i] for i in range(len(dim_index))]
         x = self._tensor_unshuffle(x, downscale_factor, dim_index)
-        if not is_batch:
-            x = x.squeeze(0)
+        # if not is_batch:
+        #     x = x.squeeze(0)
         return x
 
     @staticmethod
     def _tensor_unshuffle(tensor, downscale_factor, dim_index):
         tensor_size = list(tensor.size())
+        pre_index = list(range(tensor.dim() - len(dim_index)))
         base_index = []
         downscale_factor_index = []
         index_accum = 0
@@ -45,13 +49,18 @@ class Patchify(nn.Module):
         print(tensor_size)
         reshaped_tensor = tensor.view(tensor_size)
         print(reshaped_tensor.size())
-        permute_order = [0, 1] + downscale_factor_index + base_index
+        permute_order = pre_index + downscale_factor_index + base_index
         print(permute_order)
         permuted_tensor = reshaped_tensor.permute(permute_order)
+
+        pre_size = [tensor_size[i] for i in pre_index[:len(pre_index) - 1]]
+        print(pre_size)
         downscale_size = [tensor_size[i] for i in downscale_factor_index]
+        merged_size = math.prod(downscale_size) * tensor_size[dim_index[0] - 1]
         base_size = [tensor_size[i] for i in base_index]
-        merged_size = math.prod(downscale_size) * tensor_size[1]
-        unshuffled_size = [tensor_size[0]] + [merged_size] + base_size
+        print(merged_size)
+        print(permuted_tensor.size())
+        unshuffled_size = pre_size + [merged_size] + base_size
         unshuffled_tensor = permuted_tensor.reshape(unshuffled_size)
         return unshuffled_tensor
 

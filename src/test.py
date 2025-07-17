@@ -103,30 +103,38 @@ def main():
     channels = 3
     height = 8
     width = 8
-    is_batch = True
-    patch_size = [1, 2, 2]
-    dim_index = [2, 3, 4]  # Apply patching on H and W
+    is_batch = False
+    is_seq = False
+    if is_seq:
+        patch_size = [2, 2]
+        dim_index = [3, 4]
+    else:
+        patch_size = [1, 2, 2]
+        dim_index = [2, 3, 4]
 
     x = torch.arange(batch_size * channels * height * width).float().reshape(batch_size, channels, height, width)
-    x = x.unsqueeze(1)
+    # x = x.unsqueeze(1)
 
     if not is_batch:
         x = x[0]
-        dim_index = [1, 2, 3]
+        if is_seq:
+            dim_index = [2, 3]
+        else:
+            dim_index = [1, 2, 3]
 
     print("Original Input Shape:", x.shape)
 
     # Patchify setup: divide height and width by 2
 
-    patchify = Patchify(patch_size=patch_size, dim_index=dim_index)
-    x_patched = patchify(x, is_batch=is_batch)
+    patchify = Patchify(patch_size=patch_size)
+    x_patched = patchify(x)
 
     print("Patched Output Shape:", x_patched.shape)
-
+    exit()
     # Reconstruct setup: needs original data size
     data_size = list(x.shape)
     reconstruct = Reconstruct(data_size=data_size, dim_index=dim_index)
-    x_reconstructed = reconstruct(x_patched, is_batch=is_batch)
+    x_reconstructed = reconstruct(x_patched)
 
     print("Reconstructed Output Shape:", x_reconstructed.shape)
 
