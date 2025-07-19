@@ -58,47 +58,66 @@ class Tokenizer:
         return shapes
 
     @torch.no_grad()
-    def train(self, dataset, data_name, max_codeword_size, dim_index):
+    def train(self, dataset, data_name, max_codeword_size):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         print(codeword_sizes)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
-        for m, codeword_size in enumerate(codeword_sizes):
-            patchify = Patchify(codeword_size, dim_index)
-            is_first = m == 0
-            is_last = m == len(codeword_sizes) - 1
-            print(m, codeword_size, is_last)
-            index_tracker = 0
-            for batch_idx, data in enumerate(data_loader):
-                data = data[data_name]
-                print(batch_idx, data.size())
-                for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
-                    data_i = data[i]
-                    if index_tracker not in states:
-                        states[index_tracker] = State(data_i)
+        # for m, codeword_size in enumerate(codeword_sizes):
+        #     patchify = Patchify(codeword_size)
+        #     is_first = m == 0
+        #     is_last = m == len(codeword_sizes) - 1
+        #     print(m, codeword_size, is_last)
+        #     index_tracker = 0
+        #     for batch_idx, data in enumerate(data_loader):
+        #         data = data[data_name]
+        #         print('sample')
+        #         print(data)
+        #         print(batch_idx, data.size())
+        #         for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
+        #             data_i = data[[i]] # Add first dimension
+        #             if index_tracker not in states:
+        #                 states[index_tracker] = State(data_i)
+        #             states[index_tracker] = self.patchify(states[index_tracker], patchify, is_first)
+        #             states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_first, is_last)
+        #             states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size, is_last)
+        #             index_tracker += 1
+
+        index_tracker = 0 # TODO: adapt for multithread
+        for batch_idx, data in enumerate(data_loader):
+            data = data[data_name]
+            for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
+                data_i = data[[i]]  # Add first dimension
+                index_tracker = batch_idx + i
+                if index_tracker not in states:
+                    states[index_tracker] = State(data_i)
+                for m, codeword_size in enumerate(codeword_sizes):
+                    patchify = Patchify(codeword_size)
+                    is_first = m == 0
+                    is_last = m == len(codeword_sizes) - 1
+                    print(m, codeword_size, is_last)
                     states[index_tracker] = self.patchify(states[index_tracker], patchify, is_first)
                     states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_first, is_last)
                     states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size, is_last)
-                    index_tracker += 1
-            # print(states[index_tracker - 1])
+            # print(states[index_tracker])
+        print(states[index_tracker])
         return
 
     def patchify(self, state, patchify, is_first):
         if not is_first:
             codeword_size = patchify.patch_size
-            scale_factor = patchify.get_scale_factor(state.size)  # TODO: revise thise
+            scale_factor = self.get_scale_factor(state.size, patch_size=codeword_size)
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
             data = tuple_to_tensor(symbols, state.size, state.dtype,
                                    is_batch=False)  # TODO: need to use this codeword_indices
-            print(data.size())
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
                          codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
 
         codeword_size = patchify.patch_size
         print(codeword_size)
         print(state.data.size())
-        data = patchify(state.data, is_batch=False)
+        data = patchify(state.data)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)
         return state
@@ -155,19 +174,19 @@ class Tokenizer:
         return state
 
     @torch.no_grad()
-    def encode(self, data, max_codeword_size, dim_index):
+    def encode(self, data, max_codeword_size):
         codeword_sizes = self.find_tuple_shapes(max_codeword_size)
         state = State(data)
         for m, codeword_size in enumerate(codeword_sizes):
             print(m, codeword_size)
             codeword_size = tuple(codeword_size)
-            patchify = Patchify(codeword_size, dim_index)
+            patchify = Patchify(codeword_size)
             is_first = m == 0
             is_last = m == len(codeword_sizes) - 1
             state = self.patchify(state, patchify, is_first)
             state = self.make_root(state, codeword_size, is_first, is_last, update=False)
             state = self.merge_pair(state, codeword_size, is_last, update=False)
-            print(state)
+            # print(state)
         return state
 
     @torch.no_grad()  # TODO: split vocab to different layer is the key
@@ -229,6 +248,7 @@ class Tokenizer:
         # # decoded = torch.tensor(decoded, dtype=data_dtype).view(*data_shape)
         return decoded
 
+    # TODO: revise this
     def get_scale_factor(self, size, patch_size=None, dim_index=None):
         patch_size = patch_size if patch_size is not None else patch_size
         if dim_index is None:
