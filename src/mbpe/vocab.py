@@ -48,7 +48,6 @@ class Vocab:
         in_indices = []
         out_symbols = []
         out_indices = []
-
         for idx, symbol in enumerate(symbols):
             is_in = False
             if symbol in self.symbol2codeword:
