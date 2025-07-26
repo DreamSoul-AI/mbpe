@@ -26,19 +26,19 @@ def main():
         indices = list(range(0, num_samples))
         dataset = Subset(dataset, indices)
 
-    tokenizer = mbpe.tokenizer.Tokenizer(min_freq, batch_size=batch_size, max_workers=max_workers)
-    tokenizer.train(dataset, data_name, max_codeword_size)
+    tokenizer = mbpe.tokenizer.Tokenizer(min_freq, max_codeword_size=max_codeword_size, batch_size=batch_size,
+                                         max_workers=max_workers)
+    tokenizer.train(dataset, data_name)
     print('vocabulary:', tokenizer.vocab)
+    exit()
 
     sample = dataset[0][data_name].unsqueeze(0) # first dimension as seq
     print('sample:', sample.size(), sample)
-
-    encoded = tokenizer.encode(sample, max_codeword_size=max_codeword_size)
-    print("encoded:", encoded)
     exit()
+    encoded = tokenizer.encode(sample)
+    print("encoded:", encoded)
 
-    decoded = tokenizer.decode(encoded, max_codeword_size, dim_index,
-                               data_shape=sample.shape, data_dtype=sample.dtype)
+    decoded = tokenizer.decode(encoded, dim_index, data_shape=sample.shape, data_dtype=sample.dtype)
     print("decoded:", decoded)
     exit()
     print("Decoded shape:", decoded.shape)

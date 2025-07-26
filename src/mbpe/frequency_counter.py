@@ -25,12 +25,12 @@ class FrequencyCounter:
             freqs.append(freq)
         return freqs
 
-    def update(self, symbols, is_last=False):
+    def update(self, symbols, ignore_threshold=False):
         counter = Counter(symbols)
         self.total_count += len(symbols)
         for symbol, count in counter.items():
             if symbol not in self.count_table:
-                if count / len(symbols) >= self.min_freq['freq_counter'] or is_last:
+                if count / len(symbols) >= self.min_freq['freq_counter'] or ignore_threshold:
                     self.count_table[symbol] = count
             else:
                 self.count_table[symbol] += count

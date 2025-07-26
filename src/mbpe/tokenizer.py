@@ -12,10 +12,12 @@ from .vocab import Vocab
 
 
 class Tokenizer:
-    def __init__(self, min_freq, batch_size=1, max_workers=None):
+    def __init__(self, min_freq, max_codeword_size, batch_size=1, max_workers=None):
         super().__init__()
         self.vocab = Vocab()
         self.freq_counter = FrequencyCounter(min_freq)
+        self.codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+        print('Found codeword Sizes:{}'.format(self.codeword_sizes))
         self.batch_size = batch_size
         self.max_workers = max_workers
         self._lock = threading.Lock()
@@ -58,11 +60,9 @@ class Tokenizer:
         return shapes
 
     @torch.no_grad()
-    def train(self, dataset, data_name, max_codeword_size):
-        codeword_sizes = self.find_tuple_shapes(max_codeword_size)
-        print(codeword_sizes)
+    def train(self, dataset, data_name):
+        print(self.codeword_sizes)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
-        print('Found codeword Sizes:{}'.format(codeword_sizes))
         states = {}
         for batch_idx, data in enumerate(data_loader):
             data = data[data_name]
@@ -71,18 +71,16 @@ class Tokenizer:
                 index_tracker = batch_idx + i
                 if index_tracker not in states:
                     states[index_tracker] = State(data_i)
-                for m, codeword_size in enumerate(codeword_sizes):
+                for m, codeword_size in enumerate(self.codeword_sizes):
                     patchify = Patchify(codeword_size)
-                    is_first = m == 0
-                    is_last = m == len(codeword_sizes) - 1
-                    print(m, codeword_size, is_last) # TODO: make codeword_size in tokenizer init to access next codeword size
-                    states[index_tracker] = self.patchify(states[index_tracker], patchify, is_first)
-                    states[index_tracker] = self.make_root(states[index_tracker], codeword_size, is_first, is_last)
-                    states[index_tracker] = self.merge_pair(states[index_tracker], codeword_size, is_last)
+                    print(m, codeword_size)
+                    states[index_tracker] = self.patchify(m, states[index_tracker], patchify)
+                    states[index_tracker] = self.make_root(m, states[index_tracker], codeword_size)
+                    states[index_tracker] = self.merge_pair(m, states[index_tracker], codeword_size)
                     print(states[index_tracker])
         return
 
-    def patchify(self, state, patchify, is_first):
+    def patchify(self, step, state, patchify):
         # if not is_first:
         #     codeword_size = patchify.patch_size
         #     scale_factor = self.get_scale_factor(state.size, patch_size=codeword_size)
@@ -100,10 +98,11 @@ class Tokenizer:
         state.update(data=data, symbols=symbols)
         return state
 
-    def make_root(self, state, codeword_size, is_first, is_last, update=True):
+    def make_root(self, step, state, codeword_size, update=True):
+        ignore_threshold = step == len(self.codeword_sizes) - 1
         if update:
-            self.freq_counter.update(state.symbols, is_last)
-            threshold = None if is_last else self.freq_counter.min_freq['root']
+            self.freq_counter.update(state.symbols, ignore_threshold)
+            threshold = None if ignore_threshold else self.freq_counter.min_freq['root']
             root_symbols, root_indices, non_root_symbols, non_root_indices = \
                 self.freq_counter.filter_symbols(state.symbols, threshold)
             root_codewords = self.vocab.update(root_symbols, codeword_size)
@@ -114,7 +113,7 @@ class Tokenizer:
 
         data = state.data[non_root_indices]
 
-        if not is_first:
+        if step > 0:  # TODO: need to check indices length
             root_indices = torch.tensor(state.symbol_indices)[root_indices].tolist()
             non_root_indices = torch.tensor(state.symbol_indices)[non_root_indices].tolist()
 
@@ -129,7 +128,7 @@ class Tokenizer:
         # print(state)
         return state
 
-    def merge_pair(self, state, codeword_size, is_last, update=True):
+    def merge_pair(self, step, state, codeword_size, update=True):
         while True:
             pairs = state.pair(state.joined)
             if update:
@@ -148,10 +147,10 @@ class Tokenizer:
             joined = state.merge(state.joined, max_pair, codeword)
             state.update(joined=joined)
 
-        if is_last:
+        if step == len(self.codeword_sizes) - 1:
             state.finalize()
         else:
-            codeword_size = patchify.patch_size
+            codeword_size = self.codeword_sizes[step + 1]
             scale_factor = self.get_scale_factor(state.size, patch_size=codeword_size)
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
             # TODO: need to use this codeword_indices
