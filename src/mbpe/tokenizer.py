@@ -81,18 +81,20 @@ class Tokenizer:
         return
 
     def patchify(self, step, state, patchify):
-        # if not is_first:
-        #     codeword_size = patchify.patch_size
-        #     scale_factor = self.get_scale_factor(state.size, patch_size=codeword_size)
-        #     symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
-        #     # TODO: need to use this codeword_indices
-        #     data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
-        #     state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
-        #                  codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
+        if step > 0:
+            scale_factor = self.get_scale_factor(state.size, patch_size=self.codeword_sizes[step])
+            # TODO: need to add scale_factor below one case, increment for every scale_factor indices
+            symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
+            print(scale_factor)
+            print(len(symbols), len(symbol_indices), len(codewords), len(codeword_indices))
+            print(symbol_indices)
+            print(codeword_indices)
+            data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
+            state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
+                         codewords=codewords, codeword_indices=codeword_indices,
+                         codeword_size=self.codeword_sizes[step])
 
         codeword_size = patchify.patch_size
-        print(codeword_size)
-        print(state.data.size())
         data = patchify(state.data)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)
@@ -113,7 +115,7 @@ class Tokenizer:
 
         data = state.data[non_root_indices]
 
-        if step > 0:  # TODO: need to check indices length
+        if step > 0:
             root_indices = torch.tensor(state.symbol_indices)[root_indices].tolist()
             non_root_indices = torch.tensor(state.symbol_indices)[non_root_indices].tolist()
 
@@ -149,14 +151,6 @@ class Tokenizer:
 
         if step == len(self.codeword_sizes) - 1:
             state.finalize()
-        else:
-            codeword_size = self.codeword_sizes[step + 1]
-            scale_factor = self.get_scale_factor(state.size, patch_size=codeword_size)
-            symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
-            # TODO: need to use this codeword_indices
-            data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
-            state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
-                         codewords=codewords, codeword_indices=codeword_indices, codeword_size=codeword_size)
         return state
 
     @torch.no_grad()
@@ -175,7 +169,7 @@ class Tokenizer:
             print(state)
         return state
 
-    @torch.no_grad()  # TODO: split vocab to different layer is the key
+    @torch.no_grad()  # TODO: refactor, need to revise and test
     def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
         codeword_sizes = list(reversed(self.find_tuple_shapes(max_codeword_size)))
         for m, codeword_size in enumerate(codeword_sizes):
@@ -184,7 +178,7 @@ class Tokenizer:
             print(self.vocab.codeword_size_codewords[codeword_size])
             codeword_size = tuple(codeword_size)
             reconstruct = Reconstruct([1, 1] + list(codeword_sizes[m + 1]),
-                                      dim_index)  # TODO: refactor, need to revise and test
+                                      dim_index)
             decoded = []
 
             for i in range(len(state.joined)):
