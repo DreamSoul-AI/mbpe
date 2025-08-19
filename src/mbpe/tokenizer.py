@@ -61,7 +61,6 @@ class Tokenizer:
 
     @torch.no_grad()
     def train(self, dataset, data_name):
-        print(self.codeword_sizes)
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         states = {}
         for batch_idx, data in enumerate(data_loader):
@@ -98,6 +97,7 @@ class Tokenizer:
         data = patchify(state.data)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)
+        print(state)
         return state
 
     def make_root(self, step, state, codeword_size, update=True):
@@ -154,64 +154,58 @@ class Tokenizer:
         return state
 
     @torch.no_grad()
-    def encode(self, data, max_codeword_size):
-        codeword_sizes = self.find_tuple_shapes(max_codeword_size)
+    def encode(self, data):
         state = State(data)
-        for m, codeword_size in enumerate(codeword_sizes):
+        for m, codeword_size in enumerate(self.codeword_sizes):
             print(m, codeword_size)
             # codeword_size = tuple(codeword_size)
             patchify = Patchify(codeword_size)
-            is_first = m == 0
-            is_last = m == len(codeword_sizes) - 1
-            state = self.patchify(state, patchify, is_first)
-            state = self.make_root(state, codeword_size, is_first, is_last, update=False)
-            state = self.merge_pair(state, codeword_size, is_last, update=False)
+            state = self.patchify(m, state, patchify)
+            state = self.make_root(m, state, codeword_size, update=False)
+            state = self.merge_pair(m, state, codeword_size, update=False)
             print(state)
         return state
 
     @torch.no_grad()  # TODO: refactor, need to revise and test
-    def decode(self, state, max_codeword_size, dim_index, data_shape, data_dtype):
-        codeword_sizes = list(reversed(self.find_tuple_shapes(max_codeword_size)))
+    def decode(self, state, data_shape, data_dtype):
+        codeword_sizes = list(reversed(self.codeword_sizes))
+        current_state  = state
+
         for m, codeword_size in enumerate(codeword_sizes):
             print(m, codeword_size)
             print(self.vocab.codeword_size_symbols[codeword_size])
             print(self.vocab.codeword_size_codewords[codeword_size])
+            
             codeword_size = tuple(codeword_size)
-            reconstruct = Reconstruct([1, 1] + list(codeword_sizes[m + 1]),
-                                      dim_index)
+            reconstruct = Reconstruct(data_shape[-len(codeword_size):])
+            
             decoded = []
-
-            for i in range(len(state.joined)):
-                codeword_i = state.joined[i]
+            for i in range(len(current_state.joined)):
+                codeword_i = current_state.joined[i]
                 get_symbol = partial(self.vocab.get_symbol, codeword_size=codeword_size)
                 decoded_i = dfs(codeword_i, get_symbol)
                 decoded.extend(decoded_i)
-            symbols = []
-            codewords = []
-            symbol_indices = []
-            codeword_indices = []
-            for i, decoded_i in enumerate(decoded):
-                if isinstance(decoded_i, str):
-                    codewords.append(decoded_i)
-                    codeword_indices.append(i)
-                else:
-                    symbols.extend(decoded_i)
-                    symbol_indices.append(i)
-            print(symbols)
-            print(codewords)
-            print(symbol_indices)
-            print(codeword_indices)
+            print(f"Decoded: {decoded}")
 
-            data = tuple_to_tensor(symbols, [1] + list(codeword_size), data_dtype, is_batch=False)
-            print(data.size())
-            reconstructed = reconstruct(data, is_batch=False)
-            print(reconstructed.size())
-            print(len(codewords))
-            print(state.codeword_indices)
-            print(state.codeword_indices[codeword_sizes[m + 1]])
-            print(len(state.codeword_indices[codeword_sizes[m + 1]]))
-            exit()
-        return decoded
+            current_state.joined = decoded
+
+        flat = [x for tup in current_state.joined for x in tup]
+        tuple_length = 1
+        for dim in codeword_size:
+            tuple_length *= dim
+        symbols = [tuple(flat[i:i+tuple_length]) for i in range(0, len(flat), tuple_length)]
+        print(f"Symbols: {symbols}")
+        
+        data = tuple_to_tensor(symbols, [len(symbols)] + list(codeword_size), data_dtype, is_batch=False)
+        # print(data)
+        print(f"Final data size: {data.size()}")
+
+        reconstruct = Reconstruct(data_shape[-len(codeword_size):])
+        reconstructed = reconstruct(data)
+        # print(reconstructed)
+        # print(reconstructed.size())
+
+        return reconstructed
 
     def get_scale_factor(self, size, patch_size=None, dim_index=None):
         patch_size = patch_size if patch_size is not None else patch_size

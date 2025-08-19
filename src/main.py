@@ -12,7 +12,7 @@ def main():
     data_name = 0
     num_samples = 1
     max_codeword_size = (1, 2, 2)
-    # dim_index = [1, 2, 3]
+    dim_index = [1, 2, 3]
     min_freq = {'root': 0.01, 'merge': 0.001, 'freq_counter': 0.01}  # TODO: take in int, can give known root as init
 
     transform = transforms.Compose([
@@ -30,19 +30,21 @@ def main():
                                          max_workers=max_workers)
     tokenizer.train(dataset, data_name)
     print('vocabulary:', tokenizer.vocab)
-    exit()
+    # exit()
 
     sample = dataset[0][data_name].unsqueeze(0) # first dimension as seq
     print('sample:', sample.size(), sample)
-    exit()
+    # exit()
     encoded = tokenizer.encode(sample)
     print("encoded:", encoded)
 
-    decoded = tokenizer.decode(encoded, dim_index, data_shape=sample.shape, data_dtype=sample.dtype)
-    print("decoded:", decoded)
-    exit()
+    decoded = tokenizer.decode(encoded, data_shape=sample.shape, data_dtype=sample.dtype)
     print("Decoded shape:", decoded.shape)
-    print("Exact match:", torch.equal(decoded, sample))
+    if torch.allclose(decoded, sample):
+        print("✅ Decoded output matches original input.")
+    else:
+        print("❌ Decoded output not match original input.")
+    exit()
     sort_sample = torch.tensor(sorted(sample.view(-1).tolist()))
     sort_decoded = torch.tensor(sorted(decoded.view(-1).tolist()))
     # print(sort_sample)
