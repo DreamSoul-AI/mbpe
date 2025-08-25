@@ -169,16 +169,12 @@ class Tokenizer:
     @torch.no_grad()  # TODO: refactor, need to revise and test
     def decode(self, state, data_shape, data_dtype):
         codeword_sizes = list(reversed(self.codeword_sizes))
-        current_state  = state
+        current_state = state
 
         for m, codeword_size in enumerate(codeword_sizes):
             print(m, codeword_size)
-            print(self.vocab.codeword_size_symbols[codeword_size])
-            print(self.vocab.codeword_size_codewords[codeword_size])
-            
             codeword_size = tuple(codeword_size)
-            reconstruct = Reconstruct(data_shape[-len(codeword_size):])
-            
+
             decoded = []
             for i in range(len(current_state.joined)):
                 codeword_i = current_state.joined[i]
@@ -189,13 +185,14 @@ class Tokenizer:
 
             current_state.joined = decoded
 
+        print(current_state.joined)
         flat = [x for tup in current_state.joined for x in tup]
+        print(flat)
         tuple_length = 1
         for dim in codeword_size:
             tuple_length *= dim
         symbols = [tuple(flat[i:i+tuple_length]) for i in range(0, len(flat), tuple_length)]
         print(f"Symbols: {symbols}")
-        
         data = tuple_to_tensor(symbols, [len(symbols)] + list(codeword_size), data_dtype, is_batch=False)
         # print(data)
         print(f"Final data size: {data.size()}")
