@@ -174,26 +174,35 @@ class Tokenizer:
         for m, codeword_size in enumerate(codeword_sizes):
             print(m, codeword_size)
             codeword_size = tuple(codeword_size)
+            is_final = (m == len(codeword_sizes) - 1)
 
             decoded = []
+            if is_final:
+                accumulate = None
             for i in range(len(current_state.joined)):
                 codeword_i = current_state.joined[i]
                 get_symbol = partial(self.vocab.get_symbol, codeword_size=codeword_size)
                 decoded_i = dfs(codeword_i, get_symbol)
-                decoded.extend(decoded_i)
+                if is_final:
+                    tuple_length = math.prod(codeword_size)
+                    for tup in decoded_i:
+                        if len(tup) != tuple_length:
+                            if accumulate is None:
+                                accumulate = tup
+                            else:
+                                accumulate += tup
+                            if len(accumulate) == tuple_length:
+                                decoded.extend([accumulate])
+                                accumulate = None
+                        else:
+                            decoded.extend([tup])
+                else:
+                    decoded.extend(decoded_i)
             print(f"Decoded: {decoded}")
 
             current_state.joined = decoded
 
-        print(current_state.joined)
-        flat = [x for tup in current_state.joined for x in tup]
-        print(flat)
-        tuple_length = 1
-        for dim in codeword_size:
-            tuple_length *= dim
-        symbols = [tuple(flat[i:i+tuple_length]) for i in range(0, len(flat), tuple_length)]
-        print(f"Symbols: {symbols}")
-        data = tuple_to_tensor(symbols, [len(symbols)] + list(codeword_size), data_dtype, is_batch=False)
+        data = tuple_to_tensor(current_state.joined, [len(current_state.joined)] + list(codeword_size), data_dtype, is_batch=False)
         # print(data)
         print(f"Final data size: {data.size()}")
 
