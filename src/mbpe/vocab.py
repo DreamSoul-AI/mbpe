@@ -8,6 +8,9 @@ class Vocab:
         self.codeword_size_symbols = defaultdict(set)
         self.codeword_size_codewords = defaultdict(set)
 
+        for i in range(256):
+            self.add((i, ), str(i), (1, 1, 1))
+
     def add(self, symbol, codeword, codeword_size=None):
         if symbol in self.symbol2codeword or codeword in self.codeword2symbol:
             raise ValueError("Symbol or codeword already exists.")

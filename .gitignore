@@ -128,3 +128,6 @@ scripts/
 /data/
 /bpe_model/
 /linear_bpe/
+
+# venv
+.mbpe

@@ -7,10 +7,10 @@ from torch.utils.data import Subset
 
 def main():
     torch.manual_seed(1)
-    batch_size = 1
+    batch_size = 4
     max_workers = 0
     data_name = 0
-    num_samples = 1
+    num_samples = 0
     max_codeword_size = (1, 2, 2)
     dim_index = [1, 2, 3]
     min_freq = {'root': 0.01, 'merge': 0.001, 'freq_counter': 0.01}  # TODO: take in int, can give known root as init
@@ -32,11 +32,18 @@ def main():
     print('vocabulary:', tokenizer.vocab)
     # exit()
 
-    sample = dataset[0][data_name].unsqueeze(0) # first dimension as seq
-    print('sample:', sample.size(), sample)
+    # sample = dataset[2][data_name].unsqueeze(0) # first dimension as seq
+    # print('sample:', sample.size(), sample)
+    # print(tokenizer.encode(sample))
     # exit()
-    encoded = tokenizer.encode(sample)
-    print("encoded:", encoded)
+
+    loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    encoded = []
+    for batch in loader:
+        encoded.extend(tokenizer.encode(batch[data_name]))
+        break
+    print('encoded:', encoded)
+    exit()
 
     decoded = tokenizer.decode(encoded, data_shape=sample.shape, data_dtype=sample.dtype)
     print("Decoded shape:", decoded.shape)

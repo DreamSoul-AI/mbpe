@@ -1,9 +1,11 @@
 import threading
 from functools import partial
+from tqdm import tqdm
 
 import torch
 from torch.utils.data import DataLoader
 from concurrent.futures import ThreadPoolExecutor
+
 from .utils import *
 from .patch import *
 from .state import State
@@ -63,20 +65,19 @@ class Tokenizer:
     def train(self, dataset, data_name):
         data_loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False)
         states = {}
-        for batch_idx, data in enumerate(data_loader):
+        for batch_idx, data in tqdm(enumerate(data_loader), total=len(data_loader), desc="Training"):
             data = data[data_name]
             for i in range(len(data)):  # TODO: add multithread/multiprocess here (later)
                 data_i = data[[i]]  # Add first dimension
-                index_tracker = batch_idx + i
+                index_tracker = batch_idx * self.batch_size + i
                 if index_tracker not in states:
                     states[index_tracker] = State(data_i)
                 for m, codeword_size in enumerate(self.codeword_sizes):
                     patchify = Patchify(codeword_size)
-                    print(m, codeword_size)
                     states[index_tracker] = self.patchify(m, states[index_tracker], patchify)
                     states[index_tracker] = self.make_root(m, states[index_tracker], codeword_size)
                     states[index_tracker] = self.merge_pair(m, states[index_tracker], codeword_size)
-                    print(states[index_tracker])
+                    # print(states[index_tracker])
         return
 
     def patchify(self, step, state, patchify):
@@ -84,10 +85,10 @@ class Tokenizer:
             scale_factor = self.get_scale_factor(state.size, patch_size=self.codeword_sizes[step])
             # TODO: need to add scale_factor below one case, increment for every scale_factor indices
             symbols, symbol_indices, codewords, codeword_indices = state.split(state.joined, scale_factor)
-            print(scale_factor)
-            print(len(symbols), len(symbol_indices), len(codewords), len(codeword_indices))
-            print(symbol_indices)
-            print(codeword_indices)
+            # print(scale_factor)
+            # print(len(symbols), len(symbol_indices), len(codewords), len(codeword_indices))
+            # print(symbol_indices)
+            # print(codeword_indices)
             data = tuple_to_tensor(symbols, state.size, state.dtype, is_batch=False)
             state.update(data=data, symbols=symbols, symbol_indices=symbol_indices,
                          codewords=codewords, codeword_indices=codeword_indices,
@@ -97,7 +98,7 @@ class Tokenizer:
         data = patchify(state.data)
         symbols = tensor_to_tuple(data, codeword_size, is_batch=False)
         state.update(data=data, symbols=symbols)
-        print(state)
+        # print(state)
         return state
 
     def make_root(self, step, state, codeword_size, update=True):
@@ -155,16 +156,31 @@ class Tokenizer:
 
     @torch.no_grad()
     def encode(self, data):
-        state = State(data)
-        for m, codeword_size in enumerate(self.codeword_sizes):
-            print(m, codeword_size)
-            # codeword_size = tuple(codeword_size)
-            patchify = Patchify(codeword_size)
-            state = self.patchify(m, state, patchify)
-            state = self.make_root(m, state, codeword_size, update=False)
-            state = self.merge_pair(m, state, codeword_size, update=False)
-            print(state)
-        return state
+        is_batched = data.dim() > 1 and data.size(0) > 1
+
+        # Single batched sample
+        if not is_batched:
+            state = State(data)
+            for m, codeword_size in enumerate(self.codeword_sizes):
+                patchify = Patchify(codeword_size)
+                state = self.patchify(m, state, patchify)
+                state = self.make_root(m, state, codeword_size, update=False)
+                state = self.merge_pair(m, state, codeword_size, update=False)
+            return state.joined
+
+        # Batched samples
+        result = []
+        for i in range(len(data)):
+            data_i = data[[i]]
+            state = State(data_i)
+            for m, codeword_size in enumerate(self.codeword_sizes):
+                patchify = Patchify(codeword_size)
+                state = self.patchify(m, state, patchify)
+                state = self.make_root(m, state, codeword_size, update=False)
+                state = self.merge_pair(m, state, codeword_size, update=False)
+            result.append(state.joined)
+
+        return result
 
     @torch.no_grad()  # TODO: refactor, need to revise and test
     def decode(self, state, data_shape, data_dtype):
