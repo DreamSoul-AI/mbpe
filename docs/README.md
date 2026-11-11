@@ -11,5 +11,6 @@
 | Patching example | [src/test.py](../src/test.py) |
 | Downstream prototype | [pipeline/](../pipeline/) |
 | Historical dependency list | [requirements.txt](../requirements.txt) |
+| Development and validation | [Development and validation](<开发 Development/README.md>) |
 
 Use these entries to locate current implementation evidence. Record design, research plans and run results as those artifacts are produced.
