@@ -1,27 +1,18 @@
 # Tokenization using Multidimensional Byte Pair Encoding (MBPE)
 This repository implements a tokenization method using Multidimensional Byte Pair Encoding (MBPE). The input is intended to be any types of data, all of which are then converted into tuples for BPE tokenization and subsequent use in downstream tasks such as autoregressive modeling.
 
-## File Structure
-The repository has the following structure:
-- [mbpe/base.py](./mbpe/base.py): The Tokenizer class is implemented as the fundamental class. It contains the train_encode and decode placeholders, along with save/load features. It is intended for inheritance rather than direct utilization.
-- [mbpe/basic.py](./mbpe/basic.py): Implements the basic tokenizer.
-- [mbpe/utils.py](./mbpe/utils.py): Implements several utility functions including reshaping, merge, etc.
-- [examples/main.py](./examples/main.py): The main Python script that performs tokenization using MDBPE on images from the MNIST dataset.
 
-## Getting Started
-To use this script, follow these steps:
-1. Clone the repository to your local machine:
-```
-    git clone https://github.com/Collaborative-AI/multimodality.git
-```
-2. Navigate to the cloned directory
-3. Install Anaconda and create a new Anaconda virtual environment
-4. Activate the virtual environment
-5. Install the required dependencies:
-```
-    pip install -r requirements.txt
-```
-6. Run the main script:
-```
-    python .\examples\main.py
-```
+## Repository structure
+
+- [Tuple-based implementation](mbpe/) contains the original tokenizer components.
+- [Tensor implementation](src/mbpe/) contains patching, shuffling, tokenization and compression metrics.
+- [MNIST example](src/main.py) exercises the tensor implementation. Running it can download MNIST and train a tokenizer.
+- [Downstream training prototype](pipeline/) contains the separate model and training scripts.
+
+## Getting started
+
+Clone [DreamSoul-AI/mbpe](https://github.com/DreamSoul-AI/mbpe) and review the entry point for the implementation you need. The repository retains a [historical dependency list](requirements.txt). Check the required versions in an isolated environment before running an example.
+
+## Repository maintenance
+
+See the [repository conventions](REPO.md) and [engineering document index](docs/README.md) for maintenance.
