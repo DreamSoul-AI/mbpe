@@ -24,6 +24,7 @@
 - [研究记录索引，按主题查结论及依据](<研究记录 Research Record/README.md>)
 - [研究计划历史版本与事前方案](<研究记录 Research Record/计划存档 Plan Archive/>)
 - [目录归档经验](<经验 Learnings/研究结论的目录与归档.md>)
+- [分支集成与 CI 验证经验](<经验 Learnings/分支集成与CI验证.md>)
 
 ## 最近研究与接续
 
