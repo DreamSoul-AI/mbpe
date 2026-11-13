@@ -1,12 +1,31 @@
-# MBPE repository conventions
+# MBPE 项目约定
 
-This checkout contains research implementations of multidimensional byte pair encoding. Use the [engineering document index](docs/README.md) to locate the relevant implementation and its examples.
+## 范围与入口
 
-## Implementation and validation
+MBPE 接续既有多维 BPE 研究。当前工程入口为 `src/mbpe`，这是本轮整理采用的工程基线，不表示已选定最终算法或已完成科学验证。先读 README 和 docs 中的设计、开发计划与活动缺陷。
 
-- The root [mbpe/](mbpe/) and [src/mbpe/](src/mbpe/) contain different implementations. Confirm which package an entry point resolves before comparing behavior.
-- [src/main.py](src/main.py) enables MNIST download and tokenizer training. Review those effects before choosing a validation command. Keep checks on synthetic inputs separate from full-data experiments.
-- [src/test.py](src/test.py) is a patching example. Its presence is evidence of a reference script. Record the checks that actually ran, including the import path, dependencies and inputs.
-- [pipeline/](pipeline/) is the downstream training prototype. Confirm model, data and compute scope before running its entry points.
+参考 [RPipe](https://github.com/DreamSoul-AI/RPipe) 的核心包、studies 分区及 structure / flow 职责分离。可安装实现放在 `src/mbpe`，批次脚本、官方基线包装和候选原型放在 `studies/`。RPipe 仅作为结构参考。
 
-Keep development, research and run records with their actual source version and evidence. Use the project's current instructions when introducing new research documents or execution paths.
+`src/legacy/` 保存历史实现与示例，迁移只调整位置。旧源码迁移映射及批次入口的路径对应见开发记录。
+
+## 资料与执行
+
+2026年11月11日 Enmao 最新范围覆盖下文旧 setup 边界：当前线程继续 CPU BPE 研究，Cursor 批次停止，不开启、不催促。只做原始像素/已有整数格子切词，完全不用 GPU，不做量化模型编码、神经网络训练、FID 或下游生成。官方代码和 legacy 只读，包装脚本可负责数据与格式。实验最低优先级，CPU线程≤8、数据worker≤4。Enmao随后明确取消“必须使用Grok临时目录”的要求，临时及实验输出按项目实际配置，已启动试验保留现有路径，不据此移动或清理原件。不写 C 盘或 DreamSoul 资料库，不在 D 盘根目录新建目录，不结束他人进程。提交、推送、超大下载或 GPU 使用需本人决定。
+
+从会话附加目录定位 DreamSoul 资料库，按任务读其研发规范及 `研发/研究/BPE/` 的现有成果。从附加 RPipe 目录阅读结构参考。workspace 研发模板是共用环境约定来源，无需作为本项目运行目录或依赖。
+
+两篇相关论文是用户此前找到的相近工作，链接及实际阅读深度见文献调研。历史 Soft-Count 材料不代表本项目已采用该路线。
+
+默认验证为离线配置与小型 CPU 单元检查。本轮不启动训练、下载模型或数据、提交推送或发布。下一阶段真实实验先明确目标、输入、环境、资源预算及输出位置。数据、模型、缓存和运行结果放源码树外，路径由实际配置提供。
+
+## 文档
+
+从[文档导航](docs/README.md)定位项目资料。通用和文献调研放在 `docs/调研 Search/`，当前研究问题、假设和实验方案归研究计划。
+
+docs 采用 workspace 研发模板的文档角色与命名。工程设计、活动缺陷与研究问题分别维护。研究尚处于接续阶段，研究计划只记录待明确的问题及形成实验协议的条件，不能把候选方向写成已确认假设。
+
+- `docs/研究报告 Research Report/` 按日期汇总跨批次的研究收获、证据边界和论文方向，引用具体研究记录及运行证据。
+- `docs/研究记录 Research Record/` 按日期记录证据支持的研究结论、适用条件和未决问题。按主题从[研究记录索引](<docs/研究记录 Research Record/README.md>)查找。旧版研究计划存入其中的 `计划存档 Plan Archive/`。
+- `docs/运行记录 Run Record/` 保存实验的实际输入、配置、命令、执行经过、失败和原始输出。
+- `docs/开发记录 Development Record/` 保存代码实现、重构和工程验证的经过。
+- `docs/经验 Learnings/` 归纳可复用的做法和适用条件。见[研究结论的目录与归档](<docs/经验 Learnings/研究结论的目录与归档.md>)。

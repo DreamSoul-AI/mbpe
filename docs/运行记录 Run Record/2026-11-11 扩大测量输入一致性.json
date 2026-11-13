@@ -1,0 +1,17 @@
+[
+  {
+    "dataset": "cifar10",
+    "prior_10_input_pixel_hashes_equal": true,
+    "new_root": "D:\\Grok Bot\\tmp\\mbpe-20261111-elsner\\cifar10\\test"
+  },
+  {
+    "dataset": "svhn",
+    "prior_10_input_pixel_hashes_equal": true,
+    "new_root": "D:\\Grok Bot\\tmp\\mbpe-20261111-elsner\\svhn\\test"
+  },
+  {
+    "dataset": "celeba",
+    "prior_10_input_pixel_hashes_equal": true,
+    "new_root": "D:\\Grok Bot\\tmp\\mbpe-20261111-elsner-corrected\\celeba\\test"
+  }
+]

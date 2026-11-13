@@ -1,0 +1,7 @@
+{
+  "manifest_version": 1,
+  "rule": "对 shapes 里的每个形状，用 random.Random(seed) 按行优先独立抽取 value_min 到 value_max 的整数（含两端）。形状顺序固定。不把抽到的格点写入仓库。",
+  "shapes": [[1, 2, 2], [1, 2, 4], [1, 4, 4]],
+  "value_min": 0,
+  "value_max": 7
+}

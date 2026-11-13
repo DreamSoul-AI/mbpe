@@ -1,0 +1,9 @@
+{
+  "manifest_version": 2,
+  "rule": "版本 2。形状按文件顺序生成，空间尾部为 (通道, 高, 宽)，行优先。stripe：先抽一个 phase，再令每个格子为 value_min + (列下标 // period + phase) 对取值个数取余。tile：先按行优先抽一块 tile_height×tile_width，再在整张图上平铺。noise：每个格子独立抽取。随机数都来自 random.Random(seed)，调用顺序就是上面这三步的文件顺序。取值范围按每张图自己的 value_min、value_max（含两端）。",
+  "grids": [
+    {"name": "stripe", "pattern": "stripe", "shape": [1, 16, 16], "period": 4, "value_min": 0, "value_max": 3},
+    {"name": "tile", "pattern": "tile", "shape": [1, 32, 32], "tile_height": 4, "tile_width": 4, "value_min": 0, "value_max": 15},
+    {"name": "noise", "pattern": "noise", "shape": [1, 24, 40], "value_min": 0, "value_max": 255}
+  ]
+}

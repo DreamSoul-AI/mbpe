@@ -115,6 +115,10 @@ ENV/
 # data
 data
 
+# third-party checkouts and downloaded weights stay local
+third_party/
+checkpoints/
+
 #output
 output/
 tmp/
@@ -132,4 +136,7 @@ scripts/
 # venv
 .mbpe
 
-/USER.md
+# Local identity and generated research outputs
+USER.md
+results/
+logs/

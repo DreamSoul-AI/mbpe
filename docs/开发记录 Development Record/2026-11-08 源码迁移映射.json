@@ -1,0 +1,67 @@
+[
+  {
+    "old": "mbpe/__init__.py",
+    "new": "legacy/tuple/mbpe/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "old": "mbpe/base.py",
+    "new": "legacy/tuple/mbpe/base.py",
+    "sha256": "1c524a67c249ef048ad901f31ec8e46d120266cffc89bb2a6483f1418f327c08"
+  },
+  {
+    "old": "mbpe/basic.py",
+    "new": "legacy/tuple/mbpe/basic.py",
+    "sha256": "3b9ff89111dff52c88230522cfe5b87428f16ebbcdd6bef889ee2820130e3eba"
+  },
+  {
+    "old": "mbpe/utils.py",
+    "new": "legacy/tuple/mbpe/utils.py",
+    "sha256": "22ad9dd44251b19add59f7693dced844bc406e7e3b66874ec5c4ff253db1498c"
+  },
+  {
+    "old": "pipeline/config.py",
+    "new": "legacy/pipeline/config.py",
+    "sha256": "944bcd3b6c718ed3fa34ef789fe61c472ce558b4b581ecd08139f830f621c018"
+  },
+  {
+    "old": "pipeline/data.py",
+    "new": "legacy/pipeline/data.py",
+    "sha256": "c03eacdd2277a9404e7ce786b20a1869588431795ac37c540e01fa694463d03f"
+  },
+  {
+    "old": "pipeline/mbpe/__init__.py",
+    "new": "legacy/pipeline/mbpe/__init__.py",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "old": "pipeline/mbpe/tokenizer.py",
+    "new": "legacy/pipeline/mbpe/tokenizer.py",
+    "sha256": "a1e78d628ea6adb7df9e506231b34ee809b67a380043412a3c7eb53f69e6db8d"
+  },
+  {
+    "old": "pipeline/mbpe/utils.py",
+    "new": "legacy/pipeline/mbpe/utils.py",
+    "sha256": "1bd31d781c15d63fd4d75ae19ccfbc69f74a4288cf5d5a49f22dcb9a74a08862"
+  },
+  {
+    "old": "pipeline/model.py",
+    "new": "legacy/pipeline/model.py",
+    "sha256": "46b8c50fcd932c1f2e440236a8a867ee65e8a264af69e57ccdced033d55f7aeb"
+  },
+  {
+    "old": "pipeline/train.py",
+    "new": "legacy/pipeline/train.py",
+    "sha256": "bac5e46772f14d243e4e9c7e4045e5d1d18af9ac97927b44345cadc20b2fd05b"
+  },
+  {
+    "old": "src/main.py",
+    "new": "legacy/tensor_examples/main.py",
+    "sha256": "6113d9d4c9b0e68b308884ae2af60b519159dbb301956e4e27948d79ca561905"
+  },
+  {
+    "old": "src/test.py",
+    "new": "legacy/tensor_examples/test.py",
+    "sha256": "058ed15d3b45c7aec9e7105fe5e1ae7b18ba658b63c93ecff75d961ff58ab384"
+  }
+]
