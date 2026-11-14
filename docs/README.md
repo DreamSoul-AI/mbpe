@@ -1,93 +1,32 @@
 # MBPE 文档导航
 
-研究报告汇总跨批次的收获。研究计划说明要验证什么，研究记录保存各项结论和依据，运行记录保存实验过程与原件，开发记录追踪代码实现。
+最新主口径见[文本与图像的序列长度对照](<研究记录 Research Record/2026-11-15 文本与图像的序列长度对照.md>)：一个token一个embedding，文件字节单列。
 
-## 当前入口
+先读[研究统合报告](<研究报告 Research Report/2026-11-14 MBPE 研究统合报告.md>)了解已知结果，再从[研究计划](<计划 Plan/研究计划 Research Plan MBPE.md>)看下一步。最新关键结论是：[有限窗口能降低累计输入，最大单批仍未改善](<研究记录 Research Record/2026-11-15 有限窗口收益与二维独立作用.md>)；强一维对照以同页的实际完成状态为准。
 
-- [项目说明与使用](../README.md)
-- [仓库专用工作约定](../REPO.md)
-- [研究脚本](../studies/README.md)
-- [通用调研 General Search MBPE](<调研 Search/通用调研 General Search/通用调研 General Search MBPE.md>)
-- [架构设计 Architecture Design MBPE](<架构设计 Architecture Design MBPE.md>)
-- [代码结构设计 Code Structure Design MBPE](<代码结构设计 Code Structure Design MBPE.md>)
-- [开发计划 Development Plan MBPE](<开发计划 Development Plan MBPE.md>)
-- [缺陷记录 Bug Report MBPE](<缺陷记录 Bug Report MBPE.md>)
-- [文献调研 Literature Search MBPE](<调研 Search/文献调研 Literature Search/文献调研 Literature Search MBPE.md>)
-- [研究计划 Research Plan MBPE](<研究计划 Research Plan MBPE.md>)
+## 按问题查资料
 
-## 研究报告 Research Report
+| 要找什么 | 入口与职责 |
+| --- | --- |
+| 项目与工作约定 | [项目说明](../README.md) · [REPO](../REPO.md) · [研究脚本](../studies/README.md) |
+| 机制、工程与前人研究 | [调研 Search](<调研 Search/README.md>)：通用调研与文献调研各有正文 |
+| 系统职责与源码组织 | [设计 Design](<设计 Design/README.md>)：架构设计、代码结构设计 |
+| 接下来验证什么、实现什么 | [计划 Plan](<计划 Plan/README.md>)：研究计划、开发计划及历史存档 |
+| 实现是否符合合同、还有什么问题 | [开发验证 Development Validation](<开发验证 Development Validation/README.md>)：实际测试/CI 入口及活动缺陷 |
+| 证据支持哪些判断 | [研究记录 Research Record](<研究记录 Research Record/README.md>)：结论、条件和未验证项 |
+| 跨实验收获 | [研究报告 Research Report](<研究报告 Research Report/>)：按日期统合结论，链接研究记录 |
+| 改了哪些代码或文档结构 | [开发记录 Development Record](<开发记录 Development Record/>)：按日期追溯实现与演进 |
+| 实际跑过什么 | [运行记录 Run Record](<运行记录 Run Record/>)：环境、命令、结果、失败及原始回执 |
+| 可复用做法 | [经验 Learnings](<经验 Learnings/>)：条件、依据与 workspace 采纳状态 |
 
-- [2026-11-14 MBPE 研究统合报告](<研究报告 Research Report/2026-11-14 MBPE 研究统合报告.md>)
+## 最近的接续入口
 
-## 研究记录 Research Record
+- [有限窗口与强一维运行证据](<运行记录 Run Record/2026-11-15 有限窗口组批与强一维CPU对照.md>) · [对应实现](<开发记录 Development Record/2026-11-15 有限窗口组批与强一维接口.md>)
 
-- [研究记录索引，按主题查结论及依据](<研究记录 Research Record/README.md>)
-- [研究计划历史版本与事前方案](<研究记录 Research Record/计划存档 Plan Archive/>)
-- [目录归档经验](<经验 Learnings/研究结论的目录与归档.md>)
-- [分支集成与 CI 验证经验](<经验 Learnings/分支集成与CI验证.md>)
+- [2026-11-15 文档分区与研究计划重写](<开发记录 Development Record/2026-11-15 文档分区与研究计划重写.md>)
+- [RGB 等容量输入实现与 CPU 验证](<开发记录 Development Record/2026-11-14 RGB等容量输入实现与CPU验证.md>)
+- [独立 RGB 原始运行证据](<运行记录 Run Record/2026-11-14 RGB独立样本等容量输入对照.md>)
+- [旧 CPU 交接](<开发记录 Development Record/2026-11-12 MBPE-CPU交接给Codex.md>)：保留当时状态，当前安排以研究计划为准
+- [历史方案和旧计划](<计划 Plan/计划存档 Plan Archive/README.md>)：不作为当前待办或执行授权
 
-## 最近研究与接续
-
-- [MBPE CPU 交接](<开发记录 Development Record/2026-11-12 MBPE-CPU交接给Codex.md>)
-- [第 29 批 一维基线与二维收益](<运行记录 Run Record/2026-11-11 第29批一维基线与二维收益.md>)
-- [第 30 批 掩码上的一维与二维](<运行记录 Run Record/2026-11-11 第30批掩码上的一维与二维.md>)
-- [第 31 批 MNIST 上的一维与二维](<运行记录 Run Record/2026-11-12 第31批真实二值数据MNIST上的一维与二维.md>)
-- [第 32 批 MNIST 放大尺度对照](<运行记录 Run Record/2026-11-13 第32批MNIST放大尺度对照.md>)
-- [2026-11-11 碰撞复现与同输入对比](<运行记录 Run Record/2026-11-11 碰撞复现与同输入对比.md>)
-- [2026-11-11 无损候选设计与验证](<开发记录 Development Record/2026-11-11 无损候选设计与验证.md>)
-
-## 开发记录
-
-- [第 38 至 40 批整数格子文件与验证](<开发记录 Development Record/2026-11-14 第38至40批 整数格子文件与验证.md>)
-- [第 37 批逐图方向文件与验证冻结](<开发记录 Development Record/2026-11-13 第37批 逐图方向文件与验证冻结.md>)
-- [第 36 批扫描验证选择与分组文件](<开发记录 Development Record/2026-11-13 第36批 扫描验证选择与分组文件.md>)
-- [第 35 批配对格子实验入口](<开发记录 Development Record/2026-11-13 第35批 配对格子实验入口.md>)
-- [第 34 批规范 Huffman 文件](<开发记录 Development Record/2026-11-13 第34批 规范Huffman文件.md>)
-- [第 33 批独立文件编解码](<开发记录 Development Record/2026-11-13 第33批 独立文件编解码.md>)
-- [两柱架构与调研整理](<开发记录 Development Record/2026-11-12 两柱架构与调研整理.md>)
-- [开发记录目录](<开发记录 Development Record/>)
-- [目录与运行产物整理](<开发记录 Development Record/2026-11-12 目录与运行产物整理.md>)
-- [本地工作区清理](<开发记录 Development Record/2026-11-12 本地工作区清理.md>)
-- [2026-11-11 碰撞复现与无损候选：开发](<开发记录 Development Record/2026-11-11 碰撞复现与无损候选.md>)
-- [2026-11-11 CPU研究接续](<开发记录 Development Record/2026-11-11 CPU研究接续.md>)
-- [2026-11-08 工程框架整理](<开发记录 Development Record/2026-11-08 工程框架整理.md>)
-- [2026-11-08 编码解码合同](<开发记录 Development Record/2026-11-08 编码解码合同.md>)
-- [2026-11-08 文献与三层研究计划](<开发记录 Development Record/2026-11-08 文献与三层研究计划.md>)
-- [2026-11-09 微观对照](<开发记录 Development Record/2026-11-09 微观对照.md>)
-- [2026-11-09 文档补全](<开发记录 Development Record/2026-11-09 文档补全.md>)
-- [2026-11-09 第6批巡检代定](<开发记录 Development Record/2026-11-09 第6批巡检代定.md>)
-- [2026-11-09 第7批词表JSON](<开发记录 Development Record/2026-11-09 第7批词表JSON.md>)
-- [2026-11-09 第8批清单与执行](<开发记录 Development Record/2026-11-09 第8批清单与执行.md>)
-- [2026-11-09 第10批清单版本2](<开发记录 Development Record/2026-11-09 第10批清单版本2.md>)
-- [2026-11-09 第11批平铺对照](<开发记录 Development Record/2026-11-09 第11批平铺对照.md>)
-- [2026-11-09 第12批第一次分叉](<开发记录 Development Record/2026-11-09 第12批第一次分叉.md>)
-- [2026-11-09 第13批分叉标注](<开发记录 Development Record/2026-11-09 第13批分叉标注.md>)
-- [2026-11-09 第14批收尾](<开发记录 Development Record/2026-11-09 第14批收尾.md>)
-- [2026-11-09 第15批 Elsner官方仓库MNIST](<开发记录 Development Record/2026-11-09 第15批 Elsner官方仓库MNIST.md>)
-- [2026-11-10 第16批 MNIST分词对照](<开发记录 Development Record/2026-11-10 第16批 MNIST分词对照.md>)
-- [2026-11-10 第17批 MNIST压缩率口径与测试集](<开发记录 Development Record/2026-11-10 第17批 MNIST压缩率口径与测试集.md>)
-
-## 运行记录
-
-- [差分 BPE 等容量向量打包](<运行记录 Run Record/2026-11-14 差分BPE等容量向量打包.md>)
-- [原始像素与左差分 BPE 对照](<运行记录 Run Record/2026-11-14 原始像素与左差分 BPE 对照.md>)
-- [固定分块的模型输入对照](<运行记录 Run Record/2026-11-14 固定分块的模型输入对照.md>)
-- [WikiText-2 千问与本地 BPE 对照](<运行记录 Run Record/2026-11-14 WikiText 千问与本地 BPE 对照.md>)
-- [WikiText-2 BPE Huffman 对照](<运行记录 Run Record/2026-11-14 WikiText BPE Huffman 对照.md>)
-- [WikiText-2 BPE 定宽落盘](<运行记录 Run Record/2026-11-14 WikiText BPE 定宽落盘.md>)
-- [MNIST BPE 定宽落盘对照](<运行记录 Run Record/2026-11-14 MNIST BPE 定宽落盘对照.md>)
-- [第 38 批原始像素 PNG 补测](<运行记录 Run Record/2026-11-14 第38批原始像素 PNG 补测.md>)
-- [第 40 批任意形状文件与线性对照](<运行记录 Run Record/2026-11-14 第40批 任意形状文件与线性对照.md>)
-- [第 39 批固定切词与统一位宽](<运行记录 Run Record/2026-11-14 第39批 固定切词与统一位宽.md>)
-- [第 38 批原始像素完整文件对照](<运行记录 Run Record/2026-11-13 第38批 原始像素完整文件对照.md>)
-- [第 37 批自动选向完整文件对照](<运行记录 Run Record/2026-11-13 第37批 自动选向完整文件对照.md>)
-- [第 36 批等预算扫描顺序对照](<运行记录 Run Record/2026-11-13 第36批 等预算扫描顺序对照.md>)
-- [第 35 批紧凑块与长条对照](<运行记录 Run Record/2026-11-13 第35批 紧凑块与长条对照.md>)
-- [第 34 批固定切词编码对照](<运行记录 Run Record/2026-11-13 第34批 固定切词编码对照.md>)
-- [第 33 批 CelebA 完整文件对照](<运行记录 Run Record/2026-11-13 第33批 CelebA完整文件对照.md>)
-- [运行记录目录](<运行记录 Run Record/>)
-- [两柱迁移离线验证](<运行记录 Run Record/2026-11-12 两柱迁移离线验证.md>)
-- [运行](<运行记录 Run Record/2026-11-11 碰撞复现与无损候选.md>)
-- [2026-11-09 合成格点微观对照](<运行记录 Run Record/2026-11-09 合成格点微观对照.md>)
-- [2026-11-08 离线框架验证](<运行记录 Run Record/2026-11-08 离线框架验证.md>)
-- [2026-11-08 编码解码往返](<运行记录 Run Record/2026-11-08 编码解码往返.md>)
+目录与日期记录保留历史事实；导航只展示当前入口和最近接续，不再重复铺满所有批次。运行证据、研究结论、综合报告保持各自分工。

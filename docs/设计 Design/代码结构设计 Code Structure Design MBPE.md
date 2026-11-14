@@ -49,6 +49,12 @@ tests/
 | 第 37 批自动选向 | `studies/batch37_adaptive_scan.py`、`studies/batch37_shared_budget.py`、`studies/adaptive_bpe_file.py` | 实验入口冻结逐图选择规则并比较完整文件。文件模块存两套词表、码表和方向位，复用既有分块编码与网格还原。 |
 | 第 38 至 40 批整数格子对照 | `studies/batch38_native_grids.py`、`studies/batch39_common_width.py`、`studies/batch40_shaped_grids.py` | 分别测真实像素、冻结 token 的位宽对照和任意形状文件。 |
 | 整数格子研究文件 | `studies/grid_bpe_file.py`、`studies/grid_bpe_study.py` | 文件模块负责形状、域、词表和码流；研究助手负责复用既有规则学习与独立往返检查。 |
+| 左差分与输入容量对照 | `studies/native_residual_bpe.py`、`studies/residual_embedding_capacity.py` | 前者在冻结的绿通道样本上学习原像素/残差规则并还原，后者复用冻结词表、9 位编号和 BF16 字节值映射核算位置；现有脚本没有 RGB 或任意形状预测接口。 |
+| 独立 RGB 与等容量输入 | `studies/rgb_input_codec.py`、`studies/rgb_capacity_study.py` | 前者负责 uint8 变换、计数头、9 位流、BF16 输入与还原；后者冻结清单和源码、按阶段学习与封存、独立解码和汇总。固定 RGB E1 已通过，任意形状预测仍未提供，强一维由下面的独立适配接口承接。 |
+
+RGB 入口已经按可逆编解码和研究装配拆分，测试为 `tests/studies/test_rgb_input_codec.py` 与 `test_rgb_capacity_study.py`。后续复用该合同补强一维及组批策略，真实依赖出现后再拆分，不提前建立空模块。当前核心包与 legacy 接口未变。 [工程计划](<../计划 Plan/开发计划 Development Plan MBPE.md>)
+
+有限窗口组批由 `studies/input_batching.py` 实现稳定分组、真实 BF16 batch、mask/长度、序列化及独立解包，`rgb_batch_study.py` 承接 E4 装配、验证选择和统计；`rgb_followup_inputs.py` 冻结新验证及互斥 E4/E2 测试清单。强一维由 `rgb_linear_codec.py` 适配既有精确相邻对算法，`rgb_linear_study.py` 承接 E2 词表学习、验证选择和独立测试；几何接口与旧核心包保持独立。codec 不访问测试源，研究入口保存选择快照，CPU 缓存与必要模型输入分别报告。
 
 旧子模块导入如 `from mbpe.tokenizer import Tokenizer` 需改成 `from mbpe.structure.bpe.tokenizer import Tokenizer`，持久化等模块同理。包入口保留原有的 `from mbpe import tokenizer` 等惰性属性。console script `mbpe` 和 `python -m mbpe` 沿用原入口。
 
@@ -61,4 +67,4 @@ tests/
 | merge controls 的纯算法用例 | `tests/mbpe/structure/` | 现有次数、空间、邻接和重叠对照语义 |
 | Elsner、Zhang、ND 原型 | `tests/studies/` | 包装行为、反例和候选往返。第三方实跑仍由实验计划单独安排 |
 
-`tests/run.py` 从仓库根解析测试包名，例如 `tests.mbpe.flow.test_setup`，避免遮蔽正式包。迁移前后的 unittest 清单逐项对应，45 项通过。包发现已覆盖新子包。本机环境缺 pytest，支持版本的打包安装仍待单独核对。见[迁移验证](<运行记录 Run Record/2026-11-12 两柱迁移离线验证.md>)。
+`tests/run.py` 从仓库根解析测试包名，例如 `tests.mbpe.flow.test_setup`，避免遮蔽正式包。迁移前后的 unittest 清单逐项对应，45 项通过。包发现已覆盖新子包。本机环境缺 pytest，支持版本的打包安装仍待单独核对。见[迁移验证](<../运行记录 Run Record/2026-11-12 两柱迁移离线验证.md>)。

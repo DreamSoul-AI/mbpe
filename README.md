@@ -4,7 +4,9 @@
 
 ## 当前研究
 
-研究范围是 CPU 上的整数格点 BPE，包括规则学习、编码、逐格还原和压缩评估。研究脚本覆盖原像素、掩码、官方基线和任意形状候选。 [研究统合报告](<docs/研究报告 Research Report/2026-11-14 MBPE 研究统合报告.md>) · [研究计划](<docs/研究计划 Research Plan MBPE.md>)
+研究范围是 CPU 上的整数格点 BPE，包括规则学习、编码、逐格还原和压缩评估。研究脚本覆盖原像素、掩码、官方基线和任意形状候选。 [研究统合报告](<docs/研究报告 Research Report/2026-11-14 MBPE 研究统合报告.md>) · [研究计划](<docs/计划 Plan/研究计划 Research Plan MBPE.md>)
+
+当前主比较为一个内容 token 占一个同宽 embedding 位置。已测 MNIST 按行一维序列缩短 81.85%，WikiText-2 测试集 Qwen3 BPE 缩短 76.79%；原始 RGB 经可逆左差分与按列一维 BPE 后，CIFAR-10、SVHN 分别缩短 23.13%、37.13%。文件字节和多个编号打包进向量的额外收益另列。模型任务效果与新颖性未验证。 [长度对照及条件](<docs/研究记录 Research Record/2026-11-15 文本与图像的序列长度对照.md>) · [组批与强一维对照](<docs/研究记录 Research Record/2026-11-15 有限窗口收益与二维独立作用.md>)
 
 官方公开实现的碰撞、方向位修复和同输入对照见[运行记录](<docs/运行记录 Run Record/2026-11-11 碰撞复现与同输入对比.md>)。带孔域、未知整数、标量和空域的支持情况见[无损候选设计](<docs/开发记录 Development Record/2026-11-11 无损候选设计与验证.md>)。
 
@@ -39,7 +41,7 @@ python -m mbpe plan --patch-size 1 2 2 --batch-size 4
 - `src/legacy/`：旧 tuple 实现、下游训练流程与张量示例
 - `data/` 和 `results/` 是旧批次约定的本机路径。原件已备份，复跑前按 [研究脚本说明](studies/README.md)恢复所需文件。
 
-Python 调用使用新模块路径，例如 `from mbpe.structure.bpe.tokenizer import Tokenizer`。研究旧 tuple 版本时在 `src/legacy/tuple` 下单独使用。模块映射见[代码结构设计](<docs/代码结构设计 Code Structure Design MBPE.md>)。
+Python 调用使用新模块路径，例如 `from mbpe.structure.bpe.tokenizer import Tokenizer`。研究旧 tuple 版本时在 `src/legacy/tuple` 下单独使用。模块映射见[代码结构设计](<docs/设计 Design/代码结构设计 Code Structure Design MBPE.md>)。
 
 ## 文档
 

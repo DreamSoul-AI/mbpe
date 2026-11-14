@@ -1,5 +1,7 @@
 # MBPE 研究脚本
 
+读取 SVHN MAT 源文件需要研究环境中的 SciPy；该依赖在读取时才导入，冻结选样、编解码与离线单测不因缺少 MAT 读取依赖而无法导入。项目 CPU CI 继续采用原有固定依赖，不为此安装整套研究环境。
+
 这里存放一维与多维 BPE 对照、官方基线包装和研究候选。各批次共用同一层的助手，便于按原文件名复现和追查依赖。可安装的核心包位于 [src/mbpe](../src/mbpe/)。
 
 | 文件 | 职责 |
@@ -15,6 +17,15 @@
 | `elsner_*.py`、`zhang_*.py` | 官方运行包装、规则解码和诊断 |
 | `nd_bpe_*.py`、`lossless_nd_*.py` | 多维原型、计数对照和无损候选 |
 | `bpe_pair_inputs.py`、`bpe_round2_summary.py` | 冻结对照输入和汇总运行证据 |
+| `native_residual_bpe.py`、`residual_embedding_capacity.py` | 旧绿通道样本的左差分、BPE 与等容量向量对照 |
+| `rgb_input_codec.py`、`rgb_capacity_study.py` | 独立 RGB 清单、左差分/二维 BPE、9 位流、等容量 CPU BF16 输入与独立解码 |
+| `rgb_followup_inputs.py`、`input_batching.py`、`rgb_batch_study.py` | 互斥 E4/E2 新保留池、有限窗口 batch、辅助输入及独立恢复 |
+| `rgb_linear_codec.py`、`rgb_linear_study.py` | 按行/按列/蛇形/Hilbert 的 RGB 接口、验证选强一维与二维等容量对照 |
+| `mnist_linear_huffman_study.py` | MNIST 原灰度按行一维规则学习、验证码表、全量测试长度及完整 Huffman 文件独立还原 |
+
+RGB 对照采用 `freeze`、`fit`、`evaluate`、`seal`、`decode`、`summarize` 分阶段入口。数据和词表冻结后不覆盖，实际执行使用冻结的源码快照。协议、计费、命令和逐格证据见[独立 RGB 运行记录](<../docs/运行记录 Run Record/2026-11-14 RGB独立样本等容量输入对照.md>)。
+
+E4/E2 使用 `rgb_followup_inputs.py` 冻结互斥新切分，`rgb_batch_study.py` 的 prepare/encode/evaluate/choose/decode/summarize 与 `rgb_linear_study.py` 的 prepare/fit/evaluate/choose/decode/summarize 分阶段执行。必须先验证选择再打开对应测试池，不能重写封存选择。实际命令、数据位置及结果见[本轮运行记录](<../docs/运行记录 Run Record/2026-11-15 有限窗口组批与强一维CPU对照.md>)。
 
 从仓库根调用研究脚本。历史命令里的 `src/<脚本名>.py` 改用 `studies/<脚本名>.py`，原记录中的输入、参数和产物路径仍按对应批次读取。当前实验边界、已有数据和结果从 [CPU 交接](<../docs/开发记录 Development Record/2026-11-12 MBPE-CPU交接给Codex.md>) 定位。搬迁后的离线检查使用 `python tests/run.py`。
 
