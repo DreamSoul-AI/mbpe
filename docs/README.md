@@ -24,7 +24,7 @@
 - [研究记录索引，按主题查结论及依据](<研究记录 Research Record/README.md>)
 - [研究计划历史版本与事前方案](<研究记录 Research Record/计划存档 Plan Archive/>)
 - [研究结论与归档约定](../REPO.md#文档)
-- [分支集成与 CI 验证经验](<经验 Learnings/分支集成与CI验证.md>)
+- [分支集成与 CI 验证经验](https://github.com/DreamSoul-AI/mbpe/blob/918cf1741c3dd85467156a1662b452f4d70663f8/docs/%E7%BB%8F%E9%AA%8C%20Learnings/%E5%88%86%E6%94%AF%E9%9B%86%E6%88%90%E4%B8%8ECI%E9%AA%8C%E8%AF%81.md)
 
 ## 最近研究与接续
 
