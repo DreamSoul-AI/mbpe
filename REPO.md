@@ -20,7 +20,7 @@ MBPE 接续既有多维 BPE 研究。当前工程入口为 `src/mbpe`，这是�
 
 ## 分支与持续集成
 
-`main` 保存已验收阶段，`development` 汇集日常开发。任务从最新 `development` 建立 `codex/<主题>` 分支，通过 PR 合入 `development`，阶段验收后再用 PR 合入 `main`。合并完成后同步长期分支，确认所有提交已被包含再清理任务分支。保留用户指定的未合并工作。
+`main` 保存已验收阶段，`dev` 汇集日常开发。任务从最新 `dev` 建立 `codex/<主题>` 分支，通过 PR 合入 `dev`，阶段验收后再用 PR 合入 `main`。合并完成后同步长期分支，确认所有提交已被包含再清理任务分支。保留用户指定的未合并工作。
 
 GitHub Actions 的 `CPU checks` 在目标为这两条长期分支的 PR 及两条分支更新时运行。采用 Python 3.11、项目固定依赖、Windows CPU runner，执行安装依赖检查、配置入口与离线回归。CI 原件从 GitHub Actions 和 PR 检查页定位。当前实验仍按用户确认的 CPU 资源范围执行。
 
