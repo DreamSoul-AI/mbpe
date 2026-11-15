@@ -60,6 +60,8 @@ RGB 入口已经按可逆编解码和研究装配拆分，测试为 `tests/studi
 
 ## 测试归属与验收顺序
 
+大词表预算曲线由 `studies/rgb_large_vocab_study.py` 单独装配，原子映射、前缀词表、token 流和独立展开与原固定9位codec分开，避免将大ID塞入旧512符号合同。复用已有tokenizers的CPU学习器，无须改核心包或官方代码。`tests/studies/test_rgb_large_vocab_study.py` 检查按列字节原子、残差往返和不良展开拒绝，真实数据另外独立解码验收。
+
 | 测试范围 | 当前位置 | 验收点 |
 | --- | --- | --- |
 | tokenizer、tensor、persist、compression、symbol cap、synthetic | `tests/mbpe/structure/` | 确定性、旧 JSON、逐格 shape 与 dtype、推断不修改状态、非法输入失败 |
@@ -68,3 +70,11 @@ RGB 入口已经按可逆编解码和研究装配拆分，测试为 `tests/studi
 | Elsner、Zhang、ND 原型 | `tests/studies/` | 包装行为、反例和候选往返。第三方实跑仍由实验计划单独安排 |
 
 `tests/run.py` 从仓库根解析测试包名，例如 `tests.mbpe.flow.test_setup`，避免遮蔽正式包。迁移前后的 unittest 清单逐项对应，45 项通过。包发现已覆盖新子包。本机环境缺 pytest，支持版本的打包安装仍待单独核对。见[迁移验证](<../运行记录 Run Record/2026-11-12 两柱迁移离线验证.md>)。
+
+## 颜色与模板研究职责
+
+`studies/color_template_codec.py` 负责颜色双射、模板词典和载荷边界；`hierarchy_color_study.py` 负责研究装配、身份封存、资源回执及独立解码。`tests/studies/test_color_template_codec.py` 检查偏移复用、混合块和不良输入。固定词表最短解析仍为研究入口内部策略，尚未迁入 src。固定 RGB 隐式位置不等于任意形状接口；本轮未改变核心、官方或 legacy。见[实现记录](<../开发记录 Development Record/2026-11-15 颜色模板合同与固定词表解析.md>)。
+
+`studies/color_vocab_extension.py`（研究目录内直接为 `color_vocab_extension.py`）承接 15 万/20 万规则前缀、原通道/颜色、原合并/最短解析的冻结预算对照，独立解码只需 IDs 和共享固定尺寸，不改核心接口。
+
+`color_vocab_extension.py --raw-only` 显式跳过颜色、差分与最短解析，仅保留原值普通 BPE；prepare_image/restore_image 分派由定向回归检查，候选不改变核心接口。

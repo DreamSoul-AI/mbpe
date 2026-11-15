@@ -18,3 +18,5 @@ OpenAlex 引用量查询于 2026-11-12。数量仅对应链接所指记录，预
 2026-11-15 Elsner v1 补核 §4.3–4.4 的覆盖定位及删最长样本/补齐条件。MEGABYTE 阅读推进到 v2 §2.1–2.4、§4.1、表7，以上原行保留初次阅读时间。BLT v1 HTML 页内日期与 arXiv 标识时间不一致，按固定 URL 记录阅读对象；出版元数据由 ACL 记录独立核对，不据 HTML 页内日期更改发表年份。
 
 工程来源另见 [PNG 第三版过滤规范](https://www.w3.org/TR/2025/REC-png-3-20250624/#filtering)，本次定向读取过滤章节，不作为 BPE 新颖性或模型效果证据。上述新增条目未下载 PDF 入库。
+
+2026-11-15 定向新增阅读：Brittain、El-Sakka的[JVCIR2007二维字典压缩](https://www.csd.uwo.ca/~melsakka/publications/journals/pdfs/2007_jvcir_Nathanael.pdf)（摘要与§2.1–2.4，未复现）；Kudo的[ACL2018 Subword Regularization](https://aclanthology.org/P18-1007.pdf)（§3.1–3.2，未复现概率训练/翻译实验）。引用量未查询。CharLS的[HP1代码](https://raw.githubusercontent.com/team-charls/charls/main/src/color_transform.hpp)作为工程机制来源，main访问于同日，未核定提交，不称为JPEG-LS规范本身。作用和限制见综述最新小节。

@@ -22,6 +22,7 @@
 | `rgb_followup_inputs.py`、`input_batching.py`、`rgb_batch_study.py` | 互斥 E4/E2 新保留池、有限窗口 batch、辅助输入及独立恢复 |
 | `rgb_linear_codec.py`、`rgb_linear_study.py` | 按行/按列/蛇形/Hilbert 的 RGB 接口、验证选强一维与二维等容量对照 |
 | `mnist_linear_huffman_study.py` | MNIST 原灰度按行一维规则学习、验证码表、全量测试长度及完整 Huffman 文件独立还原 |
+| `rgb_large_vocab_study.py` | 固定 RGB 差分按列扫描、256至150000规则前缀、逐图长度及独立 token 流还原；复用本地 tokenizers，资源守护只约束本任务 |
 
 RGB 对照采用 `freeze`、`fit`、`evaluate`、`seal`、`decode`、`summarize` 分阶段入口。数据和词表冻结后不覆盖，实际执行使用冻结的源码快照。协议、计费、命令和逐格证据见[独立 RGB 运行记录](<../docs/运行记录 Run Record/2026-11-14 RGB独立样本等容量输入对照.md>)。
 
@@ -46,3 +47,11 @@ E4/E2 使用 `rgb_followup_inputs.py` 冻结互斥新切分，`rgb_batch_study.p
 第 37 批的 `--source35`、`--source36` 指向两批完整输出，`--out` 指定新目录。`batch37_shared_budget.py` 用 `--primary` 读取主对照，另测总规则数相同的文件。独立解码入口为 `adaptive_bpe_file.py <archive.mbpa> <raw_out>`，输出按行排列的 uint8 格子。 [第 37 批运行记录](<../docs/运行记录 Run Record/2026-11-13 第37批 自动选向完整文件对照.md>)
 
 第 38 至 40 批使用 `MBPG` 研究格式。运行命令及备份输入见各批记录。独立解码入口为 `grid_bpe_file.py <archive.mbpg> <out>`，每行输出一个格子的形状、有效域和按坐标排序的整数值。 [第 38 批](<../docs/运行记录 Run Record/2026-11-13 第38批 原始像素完整文件对照.md>) · [第 39 批](<../docs/运行记录 Run Record/2026-11-14 第39批 固定切词与统一位宽.md>) · [第 40 批](<../docs/运行记录 Run Record/2026-11-14 第40批 任意形状文件与线性对照.md>)
+
+## 颜色与层次候选
+
+`color_template_codec.py` 维护可逆颜色和多尺度模板合同；`hierarchy_color_study.py` 负责冻结、候选学习、封存、独立恢复与控制。固定词表最短解析保持 token 编号不变，属于研究推断对照。最新[研究结论](<../docs/研究记录 Research Record/2026-11-15 颜色坐标与多尺度词表的输入收益.md>)及[执行证据](<../docs/运行记录 Run Record/2026-11-15 颜色与层次候选CPU对照.md>)区分 H1、验证控制与 H2。
+
+`studies/color_vocab_extension.py`（研究目录内直接为 `color_vocab_extension.py`）承接 15 万/20 万规则前缀、原通道/颜色、原合并/最短解析的冻结预算对照，独立解码只需 IDs 和共享固定尺寸，不改核心接口。
+
+`color_vocab_extension.py --raw-only` 显式跳过颜色、差分与最短解析，仅保留原值普通 BPE；prepare_image/restore_image 分派由定向回归检查，候选不改变核心接口。

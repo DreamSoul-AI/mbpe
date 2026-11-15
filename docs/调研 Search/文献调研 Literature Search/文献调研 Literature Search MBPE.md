@@ -56,3 +56,13 @@ Zhang 2410.02155 的命题 2 采用行或列马尔可夫序列上的一维构造
 ## 当前研究判断
 
 保持三项判据独立。先证明固定字典与 packet 足以恢复输入合同，再比较剩余 token 和合计比特，最后验证执行开销。第 29–31 批给出的负结果支持优先分析重复区域形状、字典摊销和遍历顺序。下一轮研究若要提出新贡献，应把输入合同或成本机制写成可反驳的主张，并直接对照 Elsner、强 1D 与相关文法方法。此处完成了定向调研，图压缩实验表和现代方法的实现尚未复现。研究问题和具体实验授权见[研究计划](<../../计划 Plan/研究计划 Research Plan MBPE.md>)。
+
+## 2026-11-15 颜色与结构候选的最近来源核对
+
+本轮沿用research-plan并用paper-analysis做定向方法阅读，目的在于界定已知机制，不是穷尽检索或证明新颖性。
+
+- [CharLS主仓color_transform.hpp](https://raw.githubusercontent.com/team-charls/charls/main/src/color_transform.hpp)，访问2026-11-15，读取HP1正反变换及注释，未核定main提交、未编译。源码已有保留G、对R/B减G的可逆颜色变换，并明确这些变换在官方JPEG-LS规范之外。本轮使用通道重排、无128偏置的模256变体，不把该机制称为新发明，也不把它解释成真实光谱坐标。
+- [Brittain与El-Sakka，Grayscale true two-dimensional dictionary-based image compression，JVCIR18(2007)35–44，作者PDF](https://www.csd.uwo.ca/~melsakka/publications/journals/pdfs/2007_jvcir_Nathanael.pdf)，读取摘要及§2.1–2.4。该文将近似块匹配与位置、尺寸、准确残差一起传输，不是只发模板就能无损。它提供参数/残差必须计费的先例；未复现实现、未核验性能表，不能借其文件收益证明本项目输入位置收益。
+- [Kudo，Subword Regularization，ACL2018正式PDF §3.1–3.2](https://aclanthology.org/P18-1007.pdf)，核对固定词表下多种切分、Unigram分解和Viterbi求最优路径。路径搜索已有先例。本轮只用已有BPE词表、统一每片代价1来检查最少token，不做该文概率学习、采样或机器翻译复现。
+
+本轮判断：可逆颜色坐标、多尺度匹配和最短路径解析都有直接已有机制。值得先取得的是相同词表预算/输入宽度下的局部证据，不能单凭组合或“hierarchical”名称宣称方法创新。颜色和模板参数若占输入位置须完整计入；静态结构共享、CPU文件缩小和模型N变少分别判断。
