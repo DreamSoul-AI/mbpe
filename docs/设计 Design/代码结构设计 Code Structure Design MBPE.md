@@ -42,6 +42,7 @@ tests/
 | `structure/config.py`、`structure/synthetic.py` 与两个 JSON | 沿用现有位置 | 预览轻依赖，继续按清单版本和种子得到同一格点。 |
 | `flow/cli.py`、`run.py`、`tile_controls.py` | 沿用现有位置 | 继续负责参数、装配与输出。改为依赖新结构路径。 |
 | `studies/*.py` 与 `src/legacy/` | 沿用现有位置 | 候选仍通过独立研究入口运行，历史脚本供复现和追溯。 |
+| 损失引导选词 | `studies/loss_guided_pair_study.py`、`studies/loss_guided_bpe_study.py`、`studies/loss_guided_tokenizers_check.py` | 单候选封存样本，多轮入口维护实切规则，Tokenizers 入口提供库版频次基线和独立重放，复用冻结预测器和 RGB 恢复合同。 |
 | 第 33 批完整文件对照 | `studies/batch33_celeba_files.py`、`studies/bpe_block_file.py` | 实验入口负责样本冻结、配置选择、测量及取证。文件模块负责字节布局和独立解码，复用候选的覆盖还原。 |
 | 第 34 批编码对照 | `studies/batch34_token_coding.py`、`studies/canonical_huffman.py` | 从冻结文件复用规则与 token，用验证流构造码表。文件模块负责 v1 与 v2 的分块读取和还原。 |
 | 第 35 批形状对照 | `studies/batch35_shape_layouts.py` | 生成配对整数格子，复用规则学习与独立解码，保存等预算文件和逐对差值。 |
@@ -78,3 +79,7 @@ RGB 入口已经按可逆编解码和研究装配拆分，测试为 `tests/studi
 `studies/color_vocab_extension.py`（研究目录内直接为 `color_vocab_extension.py`）承接 15 万/20 万规则前缀、原通道/颜色、原合并/最短解析的冻结预算对照，独立解码只需 IDs 和共享固定尺寸，不改核心接口。
 
 `color_vocab_extension.py --raw-only` 显式跳过颜色、差分与最短解析，仅保留原值普通 BPE；prepare_image/restore_image 分派由定向回归检查，候选不改变核心接口。
+
+`studies/raw_rgb_coverage_study.py` 复用 RGB 颜色、差分和扫描模块，装配嵌套样本、规则前缀、同词表解析与隐式边界解码。固定测试和词表身份由输入清单与封存回执关联。定向测试维护在 `tests/studies/test_raw_rgb_coverage_study.py`。[工程记录](<../开发记录 Development Record/2026-11-17 RGB词表覆盖对照与固定尺寸解码.md>)
+
+同一研究入口加入 0–3 阶空间差分、方向和 RGB 通道链坐标。封存词表时一并记录差分约定，解码按逆序逐次累加并还原颜色。[高阶差分工程记录](<../开发记录 Development Record/2026-11-17 可逆高阶差分与方向对照.md>)

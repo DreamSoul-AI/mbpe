@@ -55,3 +55,13 @@ E4/E2 使用 `rgb_followup_inputs.py` 冻结互斥新切分，`rgb_batch_study.p
 `studies/color_vocab_extension.py`（研究目录内直接为 `color_vocab_extension.py`）承接 15 万/20 万规则前缀、原通道/颜色、原合并/最短解析的冻结预算对照，独立解码只需 IDs 和共享固定尺寸，不改核心接口。
 
 `color_vocab_extension.py --raw-only` 显式跳过颜色、差分与最短解析，仅保留原值普通 BPE；prepare_image/restore_image 分派由定向回归检查，候选不改变核心接口。
+
+`raw_rgb_coverage_study.py` 比较相同原值词表的普通与最短切分，以及嵌套学习量和规则预算。匹配对照复用冻结输入比较颜色差分、扫描与独立无损恢复。[执行入口与资源回执](<../docs/运行记录 Run Record/2026-11-17 RGB学习覆盖与词表规模CPU对照.md>)
+
+`wikitext_delta_bpe.py` 在相同行边界下学习原字节和一阶差分 BPE，并在同一测试文本上核对最短切分与原装千问三。[执行记录](<../docs/运行记录 Run Record/2026-11-17 WikiText字节差分CPU对照.md>)
+
+固定 6000 图的差分实验使用 `--only-6000`、`--spatial-order` 与 `--spatial-direction`。`--transform` 另支持通道链一阶和二阶。阶段参数和实际命令见对应回执。[空间与颜色差分执行记录](<../docs/运行记录 Run Record/2026-11-17 空间与颜色差分CPU对照.md>)
+
+## 词表合并目标
+
+`loss_guided_pair_study.py` 逐条重切共享候选。`loss_guided_bpe_study.py` 比较常规频次选词与按真实重切 loss 选词的等规则预算结果。`loss_guided_tokenizers_check.py` 可运行库版频次基线或独立重放封存的规则。三个入口复用可逆 RGB 颜色差分、逐图解码和 CPU 字节计数预测。[命令、数据和回执](<../docs/运行记录 Run Record/2026-11-17 损失引导BPE词表CPU先导.md>)
