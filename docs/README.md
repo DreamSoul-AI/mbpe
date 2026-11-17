@@ -33,7 +33,7 @@ WikiText-2 补测原字节与一阶差分、普通与最短切分，并复跑原
 | 跨实验收获 | [研究报告 Research Report](<研究报告 Research Report/>)：按日期统合结论，链接研究记录 |
 | 改了哪些代码或文档结构 | [开发记录 Development Record](<开发记录 Development Record/>)：按日期追溯实现与演进 |
 | 实际跑过什么 | [运行记录 Run Record](<运行记录 Run Record/>)：环境、命令、结果、失败及原始回执 |
-| 可复用做法 | [经验 Learnings](<经验 Learnings/>)：条件、依据与 workspace 采纳状态 |
+| 可复用做法 | 经验 Learnings（原笔记已归入研究与开发记录）：条件、依据与 workspace 采纳状态 |
 
 ## 最近的接续入口
 
