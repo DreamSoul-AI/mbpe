@@ -41,7 +41,7 @@ docs 采用 workspace 研发模板的文档角色与命名。工程设计、活�
 - `docs/研究记录 Research Record/` 按日期记录证据支持的研究结论、适用条件和未决问题。按主题从[研究记录索引](<docs/研究记录 Research Record/README.md>)查找。
 - `docs/运行记录 Run Record/` 保存实验的实际输入、配置、命令、执行经过、失败和原始输出。
 - `docs/开发记录 Development Record/` 保存代码实现、重构和工程验证的经过。
-- `docs/经验 Learnings/` 归纳可复用的做法和适用条件。见[研究结论的目录与归档](<docs/经验 Learnings/研究结论的目录与归档.md>)。
+- `docs/经验 Learnings/` 归纳可复用的做法和适用条件。见[研究结论的目录与归档](<docs/研究记录 Research Record/2026-11-15 颜色坐标与多尺度词表的输入收益.md>)。
 
 经验沿用该目录的主题文件及文档导航作为等价入口，不另建重复的 Experience 清单。共用模板已采纳的建议标明来源与采纳范围，项目仍在引用的说明继续保留。
 
