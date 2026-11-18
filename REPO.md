@@ -37,3 +37,11 @@ docs 采用 workspace 研发模板的文档角色与命名。工程设计、活�
 - `docs/经验 Learnings/` 归纳尚待采用的做法和适用条件，已进入正式约定的内容从队列清理。
 
 研究结论的目录与归档已由 [workspace 研发模板](https://github.com/DreamSoul-AI/workspace/blob/main/templates/software-engineering/AGENTS.template.md) 采用。本项目的阶段结论先用两到三个核心研究问题总览，明确比较对象和已测条件，先回答结果或尚未验证，再说明证据与适用范围。跨批次报告用核心问题串联收获，关键数字链接回对应研究记录和运行证据。
+
+## 共享资源入口
+
+- 使用共享资源时，从 [Knowledge](https://github.com/DreamSoul-AI/knowledge) 查找共享资源工具，按 Workspace 配套示例将数据、模型与项目产物接入 `.local/`。本机路径从个人配置读取，实际链接与消费者按项目核对。
+
+## Workspace 采用记录
+
+- 来源 [Workspace 098bd2e](https://github.com/DreamSoul-AI/workspace/tree/098bd2eccf23eb1e6d77a3eec6db51e6bc387daf)。采用范围为Learnings 命名与分发、文档规范配置、长作业检查点与恢复、调研、研究计划与研究结论归档、可选共享资源入口。项目专用流程见本文件。

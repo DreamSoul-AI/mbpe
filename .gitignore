@@ -140,3 +140,5 @@ scripts/
 USER.md
 results/
 logs/
+
+/.local/
