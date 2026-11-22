@@ -140,3 +140,4 @@ scripts/
 USER.md
 results/
 logs/
+/.shared/
