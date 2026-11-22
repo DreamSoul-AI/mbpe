@@ -141,3 +141,5 @@ USER.md
 results/
 logs/
 /.shared/
+/.tmp/
+/.workspace/local/
